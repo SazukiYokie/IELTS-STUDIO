@@ -555,3 +555,20 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .fl-t.ok { border-left-color: #34d399; } .fl-t.warn { border-left-color: #fbbf24; } .fl-t.bad { border-left-color: #fb7185; }
 .fl-tip { margin: 0; font-size: 0.85rem; line-height: 1.5; color: #e2e8f0; }
 .fl-note { margin: 0; font-size: 0.7rem; color: #94a3b8; }
+
+/* ---- Live Speaking interview ---- */
+.sx-btn-live { width: 100%; background: linear-gradient(135deg, #0ea5e9, #6366f1); box-shadow: 0 6px 18px rgba(79,70,229,0.4); padding: 0.85rem 1rem; font-size: 0.95rem; }
+.lv-card { background: rgba(15,23,42,0.94); border: 1px solid rgba(244,63,94,0.38); border-radius: 1.1rem; padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.lv-top { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #fda4af; }
+.lv-q { font-size: 1.2rem; font-weight: 700; line-height: 1.45; color: #f8fafc; min-height: 3.4rem; }
+.lv-cue { background: #0f172a; border: 1px dashed rgba(148,163,184,0.5); border-radius: 0.8rem; padding: 0.8rem 0.95rem; color: #e2e8f0; font-size: 0.95rem; line-height: 1.5; }
+.lv-cue b { display: block; margin-bottom: 0.25rem; color: #fff; }
+.lv-cue span { display: block; color: #94a3b8; font-size: 0.8rem; margin-top: 0.2rem; }
+.lv-cue ul { margin: 0.2rem 0 0.35rem 1.1rem; padding: 0; list-style: disc; }
+.lv-cue em { font-style: normal; color: #cbd5e1; }
+.lv-status { text-align: center; font-size: 0.9rem; font-weight: 700; padding: 0.7rem; border-radius: 0.8rem; background: #0f172a; color: #cbd5e1; min-height: 2.6rem; }
+.lv-status.rec { color: #fb7185; background: rgba(244,63,94,0.12); animation: sxBlink 1.4s infinite; }
+.lv-status.busy { color: #c4b5fd; }
+.lv-status.warn, .lv-status.bad { color: #fcd34d; background: rgba(251,191,36,0.1); }
+.lv-actions { display: flex; flex-direction: column; gap: 0.5rem; }
+.lv-actions .sx-btn { width: 100%; padding: 0.9rem 1rem; }

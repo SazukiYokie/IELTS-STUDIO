@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115h">
+    <link rel="stylesheet" href="style.css?v=20261115i">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -511,6 +511,7 @@
                     <div id="speaking-cue-card" class="sx-paper"><div class="sx-empty"><b>Start a full Speaking test</b><span>Press <em>New test</em> for a Part 1 interview, a Part 2 cue card and Part 3 discussion questions.</span></div></div>
 
                     <div id="speaking-work" class="sx-work hide">
+                    <button type="button" id="btn-live-start" class="sx-btn sx-btn-live"><i class="fa-solid fa-headset"></i>Live interview: the examiner talks to you</button>
                     <div class="sx-row">
                         <button type="button" id="btn-speak-aloud" class="sx-btn sx-btn-ghost"><i class="fa-solid fa-volume-high"></i>Hear examiner</button>
                         <button type="button" id="btn-speak-prep" class="hide sx-btn sx-btn-ghost"><i class="fa-solid fa-stopwatch"></i>1-min prep</button>
@@ -536,6 +537,15 @@
                     </div>
 
                     <div id="speaking-result" class="hide sx-result"><div id="speaking-sample-box" class="ai-prose"></div></div>
+                    </div>
+
+                    <div id="live-panel" class="hide lv-card" aria-live="polite">
+                        <div class="lv-top"><span id="lv-stage">Part 1</span><button type="button" id="lv-quit" class="sx-link">End interview</button></div>
+                        <div id="lv-q" class="lv-q"></div>
+                        <div id="lv-cue" class="hide lv-cue"></div>
+                        <div id="lv-status" class="lv-status"></div>
+                        <div id="lv-actions" class="lv-actions"></div>
+                        <p class="sx-note">The examiner reads each question aloud. Speak, then tap <b>I have finished</b>. Your voice is not stored.</p>
                     </div>
 
                     <details class="sx-fold">
@@ -1177,7 +1187,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             html('writing-prompt-box', '<div class="sx-empty"><b>Pick a task to begin</b><span>You get an exam-style question, a timer and AI marking on the 4 official IELTS criteria.</span></div>');
             document.querySelectorAll('.sx-pick').forEach(b => b.classList.remove('on')); document.querySelectorAll('#view-writing .sx-meter i').forEach(m => { m.style.width = '0'; }); document.querySelectorAll('#view-writing .sx-count').forEach(c => c.classList.remove('ok'));
             html('speaking-cue-card', '<div class="sx-empty"><b>Start a full Speaking test</b><span>Press <em>New test</em> for a Part 1 interview, a Part 2 cue card and Part 3 discussion questions.</span></div>'); hide('speaking-part-tabs');
-            html('speaking-sample-box', ''); try { mock = null; mockViewing = null; html('mt-body', ''); } catch (e) {} try { html('rp-sheet', ''); } catch (e) {} try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
+            try { endLive(); } catch (e) {} html('speaking-sample-box', ''); try { mock = null; mockViewing = null; html('mt-body', ''); } catch (e) {} try { html('rp-sheet', ''); } catch (e) {} try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
             html('writing-feedback-box', ''); hide('writing-feedback-box');
             html('listening-transcript-box', ''); hide('listening-transcript-box');
             txt('listening-score-box', ''); txt('reading-score-box', '');
@@ -3067,7 +3077,8 @@ Return JSON only: {"p1":{"topic":"...","qs":["","","",""]},"p2":{"prompt":"Descr
             const box = document.getElementById('speaking-sample-box');
             showResultBox(document.getElementById('speaking-result'));
             box.innerHTML = `<span class="text-emerald-400 animate-pulse">✨ Marking your Speaking answers...</span>`;
-            const body = t.parts ? answered.map(p => `### Part ${p}\nQuestions:\n${speakingPartText(t, p)}\n\nCandidate answer:\n"${t.answers[p].trim()}"`).join('\n\n') : `Cue card:\n${t.cardMarkdown || "Speaking Part 2"}\n\nCandidate answer:\n"${t.userTranscript.trim()}"`;
+            const liveConvo = (p) => { const lv = t.live; if (!lv || !(lv.log && lv.log[p] && lv.log[p].length)) return null; if (String(t.answers?.[p] || '').trim() !== String(lv.joined?.[p] || '').trim()) return null; return lv.log[p].map(x => `Examiner: ${x.q}\nCandidate: ${x.a}`).join('\n'); };
+            const body = t.parts ? answered.map(p => liveConvo(p) ? `### Part ${p} (live interview: the examiner chose the follow-up questions)\n${liveConvo(p)}` : `### Part ${p}\nQuestions:\n${speakingPartText(t, p)}\n\nCandidate answer:\n"${t.answers[p].trim()}"`).join('\n\n') : `Cue card:\n${t.cardMarkdown || "Speaking Part 2"}\n\nCandidate answer:\n"${t.userTranscript.trim()}"`;
             const missing = t.parts && answered.length < 3 ? `Only Part${answered.length > 1 ? 's' : ''} ${answered.join(', ')} of 3 were answered; mention this and mark only what was said.` : "";
             const measured = answered.map(p => { const f = t.fluency?.[t.parts ? p : 0]; return f ? `${t.parts ? 'Part ' + p + ': ' : ''}${fluencyLine(f)}` : ''; }).filter(Boolean).join('\n');
             const reply = await askIELTSAI(`You are a strict, fair IELTS Speaking examiner. Mark the candidate's answers below. The answers are transcripts typed or produced by speech recognition, so judge Pronunciation only from word choice and any clear signs in the text, and say that pronunciation cannot be assessed accurately from text. ${missing}
@@ -3308,6 +3319,205 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             dictActive = true; if (btn) btn.textContent = 'Stop dictation';
             try { dictRec.start(); recStatus('🎤 Listening... speak now.', 'text-rose-400'); } catch (e) { dictActive = false; }
         });
+
+        // ===== Live Speaking interview: the AI examiner asks aloud, you answer by voice, and it follows up =====
+        let live = null;   // the interview that is running, or null
+        const lvEl = (id) => document.getElementById(id);
+        function lvPaint(L, o) {
+            if (L !== live) return;
+            if (o.stage !== undefined) lvEl('lv-stage').textContent = o.stage;
+            if (o.q !== undefined) lvEl('lv-q').innerHTML = o.q;
+            if (o.status !== undefined) { const el = lvEl('lv-status'); el.className = 'lv-status ' + (o.tone || ''); el.innerHTML = o.status; }
+            if (o.cue !== undefined) { const c = lvEl('lv-cue'); c.classList.toggle('hide', !o.cue); c.innerHTML = o.cue || ''; }
+            if (o.buttons !== undefined) lvEl('lv-actions').innerHTML = o.buttons.map(d => `<button type="button" data-lv="${d.id}" class="sx-btn ${d.cls || 'sx-btn-ghost'}">${d.label}</button>`).join('');
+        }
+        // show buttons and wait for one of them to be tapped
+        function lvAct(L, status, tone, buttons) {
+            return new Promise(res => { lvPaint(L, { status, tone, buttons }); L.onBtn = (id) => { L.onBtn = null; res(id); }; });
+        }
+        // the examiner speaks; resolves when the voice finishes (or the student skips it)
+        function lvSay(L, text) {
+            return new Promise(res => {
+                let done = false;
+                const fin = () => { if (done) return; done = true; clearTimeout(tm); L.skipSay = null; res(); };
+                const tm = setTimeout(fin, 9000 + text.split(/\s+/).length * 650);   // safety net if the voice never reports back
+                L.skipSay = () => { stopListening(); fin(); };
+                L.onBtn = () => L.skipSay && L.skipSay();
+                lvPaint(L, { status: '<i class="fa-solid fa-volume-high"></i> The examiner is speaking...', tone: 'busy', buttons: [{ id: 'skip', label: 'Skip the voice' }] });
+                Promise.resolve(playListening('Examiner: ' + text, 0.95, fin)).catch(fin);
+            });
+        }
+        function lvListen(L, maxSec) {
+            return new Promise(resolve => {
+                const chunks = [];
+                const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => MediaRecorder.isTypeSupported?.(m));
+                let rec;
+                try { rec = mime ? new MediaRecorder(L.stream, { mimeType: mime }) : new MediaRecorder(L.stream); } catch (e) { resolve({ action: 'error' }); return; }
+                const t0 = Date.now(); let action = 'done', tick, cap;
+                const finish = (a) => { action = a; if (rec.state === 'recording') { try { rec.stop(); } catch (e) {} } };
+                rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+                rec.onstop = () => { clearInterval(tick); clearTimeout(cap); L.finishListen = null; resolve({ action, blob: new Blob(chunks, { type: rec.mimeType || mime || 'audio/webm' }) }); };
+                L.finishListen = finish; L.onBtn = (id) => finish(id);
+                const paint = () => { const sec = Math.round((Date.now() - t0) / 1000); lvPaint(L, { status: `🔴 Recording ${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')} · speak now`, tone: 'rec' }); };
+                lvPaint(L, { buttons: [{ id: 'done', label: 'I have finished', cls: 'sx-btn-main' }, { id: 'repeat', label: 'Repeat the question' }] });
+                paint(); tick = setInterval(paint, 300); cap = setTimeout(() => finish('done'), maxSec * 1000);
+                rec.start();
+            });
+        }
+        // one question: speak it, record the answer, turn it into text. Returns { text, words } or null when skipped.
+        async function lvTurn(L, question, maxSec, shown) {
+            for (let n = 0; n < 8; n++) {
+                if (L !== live) return null;
+                lvPaint(L, { q: escapeHTML(shown || question) });
+                await lvSay(L, question);
+                if (L !== live) return null;
+                const got = await lvListen(L, maxSec);
+                if (L !== live) return null;
+                if (got.action === 'repeat') continue;
+                if (got.action === 'quit') return null;
+                if (got.action === 'error') { lvPaint(L, { status: '⚠ This browser could not record. Press End interview and use Record Voice instead.', tone: 'bad', buttons: [] }); return null; }
+                if (!got.blob || got.blob.size < 2500) {
+                    const c = await lvAct(L, 'I could not hear anything. Check your microphone.', 'warn', [{ id: 'again', label: 'Ask me again', cls: 'sx-btn-main' }, { id: 'skip', label: 'Skip this question' }]);
+                    if (L !== live || c === 'quit' || c === 'skip') return null;
+                    continue;
+                }
+                const ext = /mp4/.test(got.blob.type) ? 'm4a' : /ogg/.test(got.blob.type) ? 'ogg' : 'webm';
+                for (;;) {
+                    lvPaint(L, { status: '⏳ The examiner is listening back...', tone: 'busy', buttons: [] });
+                    let r = null, err = '';
+                    try { r = await transcribeBlob(got.blob, ext); } catch (e) { err = (e && e.message) || 'problem'; }
+                    if (L !== live) return null;
+                    if (r && r.text) return r;
+                    const c = await lvAct(L, err ? `⚠ I could not turn that into text (${escapeHTML(err)}).` : 'I could not hear any words in that.', 'warn', [{ id: 'retry', label: err ? 'Try again' : 'Ask me again', cls: 'sx-btn-main' }, { id: 'skip', label: 'Skip this question' }]);
+                    if (L !== live || c === 'quit' || c === 'skip') return null;
+                    if (!err) break;   // nothing heard: ask the question again
+                }
+            }
+            return null;
+        }
+        async function lvFollowUp(L, q, a) {
+            if (String(a).split(/\s+/).length > 60) return '';   // a long answer needs no probing
+            const raw = await askIELTSAI(`An IELTS Speaking examiner asked: "${q}"\nThe candidate answered: "${String(a).slice(0, 600)}"\nAsk ONE short, natural follow-up question (maximum 14 words) about something the candidate said, the way a real examiner would. Do not praise the answer.\nReturn JSON only: {"followup":"..."}`, "You are an IELTS Speaking examiner. Output valid JSON only.", true, { maxTokens: 120, budgetMs: 9000 });
+            const p = parseJSONSafely(raw);
+            const f = p && typeof p.followup === 'string' ? p.followup.trim() : '';
+            return f.length >= 8 && f.length <= 140 && /\?$/.test(f) ? f : '';
+        }
+        // the examiner says something that needs no answer (introductions, thanks)
+        async function lvNote(L, stage, text) { lvPaint(L, { stage, q: escapeHTML(text) }); await lvSay(L, text); }
+
+        // copy what was said so far into the test so it can be edited and marked like any other answer
+        function lvApply(L) {
+            const t = L.t; if (!t || activeSpeakingTest !== t) return false;
+            const joined = {}; Object.keys(L.log).forEach(p => { const j = L.log[p].map(x => x.a).join(' ').trim(); if (j) joined[p] = j; });
+            if (!Object.keys(joined).length) return false;
+            t.answers = { ...(t.answers || {}), ...joined };
+            t.live = { log: L.log, joined };
+            t.fluency = { ...(t.fluency || {}), ...L.fluency };
+            return true;
+        }
+        function endLive() {
+            const L = live; if (!L) return;
+            live = null; L.stop = true;
+            try { stopListening(); } catch (e) {}
+            try { L.finishListen && L.finishListen('quit'); } catch (e) {}
+            clearInterval(L.prepTimer);
+            try { L.stream && L.stream.getTracks().forEach(tr => tr.stop()); } catch (e) {}
+            const f = L.onBtn; L.onBtn = null; try { f && f('quit'); } catch (e) {}
+            lvEl('live-panel')?.classList.add('hide');
+            lvEl('speaking-cue-card')?.classList.remove('hide');
+            if (activeSpeakingTest?.parts) { lvEl('speaking-work')?.classList.remove('hide'); lvEl('speaking-part-tabs')?.classList.remove('hide'); }
+        }
+
+        async function runLive(L) {
+            const P = L.t.parts, lc = (x) => String(x || '').replace(/^./, c => c.toLowerCase());
+            const add = (part, q, r, fu) => { L.log[part].push({ q, a: r.text, fu: !!fu }); const fl = fluencyFromWords(r.words); if (fl) L.fluency[part] = mergeFluency(L.fluency[part], fl); };
+            const ask = async (part, label, q, maxSec, canFollow) => {
+                lvPaint(L, { stage: label, cue: L.cue });
+                const r = await lvTurn(L, q, maxSec);
+                if (L !== live || !r) return;
+                add(part, q, r);
+                if (!canFollow) return;
+                lvPaint(L, { status: '⏳ The examiner is thinking...', tone: 'busy', buttons: [] });
+                const fu = await lvFollowUp(L, q, r.text);
+                if (L !== live || !fu) return;
+                lvPaint(L, { stage: label.replace(/Question \d+ of \d+/, 'Follow-up') });
+                const r2 = await lvTurn(L, fu, 35);
+                if (L !== live || !r2) return;
+                add(part, fu, r2, true);
+            };
+            // Part 1
+            L.cue = '';
+            await lvNote(L, 'Part 1 · Interview', `Part 1. Now I'd like to ask you some questions about ${lc(P.p1.topic)}.`);
+            for (let i = 0; i < P.p1.qs.length; i++) { if (L !== live) return; await ask(1, `Part 1 · Question ${i + 1} of ${P.p1.qs.length}`, P.p1.qs[i], 40, i === 0 || i === 2); }
+            if (L !== live) return;
+            // Part 2
+            L.cue = `<b>${escapeHTML(P.p2.prompt)}</b><span>You should say:</span><ul>${P.p2.points.map(x => `<li>${escapeHTML(x)}</li>`).join('')}</ul><em>${escapeHTML(P.p2.end)}</em>`;
+            lvPaint(L, { cue: L.cue });
+            await lvNote(L, 'Part 2 · Long turn', `Part 2. Now I'm going to give you a topic, and I'd like you to talk about it for one to two minutes. Before you talk, you will have one minute to think about what you are going to say. You can make some notes if you wish.`);
+            if (L !== live) return;
+            lvPaint(L, { q: 'Prepare your talk. Use the cue card below.' });
+            await new Promise(res => {
+                let left = 60;
+                const tick = () => { lvPaint(L, { status: `⏱ Preparation time: <b>${left}s</b> · make brief notes`, tone: 'busy' }); if (--left < 0) { clearInterval(L.prepTimer); res(); } };
+                L.onBtn = () => { clearInterval(L.prepTimer); res(); };
+                lvPaint(L, { buttons: [{ id: 'go', label: 'I am ready, start now', cls: 'sx-btn-main' }] });
+                tick(); L.prepTimer = setInterval(tick, 1000);
+            });
+            if (L !== live) return;
+            lvPaint(L, { stage: 'Part 2 · Long turn' });
+            const r2 = await lvTurn(L, "All right? Remember you have one to two minutes for this, so don't worry if I stop you. Please begin speaking now.", 125, 'Speak for one to two minutes.');
+            if (L !== live) return;
+            if (r2) add(2, P.p2.prompt, r2);
+            // Part 3
+            L.cue = '';
+            lvPaint(L, { cue: '' });
+            await lvNote(L, 'Part 3 · Discussion', `Part 3. We have been talking about ${P.p2.prompt.replace(/^Describe\s+/i, '').replace(/\.$/, '')}, and now I would like to discuss some more general questions.`);
+            for (let i = 0; i < P.p3.length; i++) { if (L !== live) return; await ask(3, `Part 3 · Question ${i + 1} of ${P.p3.length}`, P.p3[i], 60, i < 3); }
+            if (L !== live) return;
+            await lvNote(L, 'The end', 'Thank you. That is the end of the speaking test.');
+            if (L !== live) return;
+            const filled = lvApply(L);
+            endLive();
+            if (!filled) return showToast("No answers were recorded, so there is nothing to mark.", "info");
+            renderSpeakingTest(L.t);
+            showToast("Interview finished. Marking your answers...", "success");
+            lvEl('btn-grade-speaking')?.click();
+        }
+
+        lvEl('lv-actions')?.addEventListener('click', (e) => { const b = e.target.closest('[data-lv]'); if (b && live && live.onBtn) live.onBtn(b.dataset.lv); });
+        lvEl('lv-quit')?.addEventListener('click', async () => {
+            const L = live; if (!L) return;
+            if (!(await askConfirm('End the interview?', 'Your answers so far are kept in the answer boxes, so you can still mark them.', 'End interview'))) return;
+            if (L !== live) return;
+            const kept = lvApply(L); endLive();
+            if (kept) renderSpeakingTest(L.t);
+        });
+        lvEl('btn-live-start')?.addEventListener('click', async () => {
+            const t = activeSpeakingTest;
+            if (live) return;
+            if (!t?.parts) return showToast("Press New test first!", "error");
+            if (isRecordingNow() || transcribing) return showToast("Finish the current recording first.", "info");
+            if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return showToast("This browser can't record audio. Try Chrome.", "error");
+            if (aiBusyGuard()) return;
+            unlockHdAudio();   // inside the tap, so phones allow the examiner's voice
+            await ensureAIModels();
+            if (!whisperModels.length) return showToast("The live interview needs voice-to-text, which this AI account does not have. Use Record Voice instead.", "error");
+            syncSpeakingAnswer();
+            const hasWork = Object.values(t.answers || {}).some(v => String(v).trim()) && !t.feedbackMarkdown;
+            if (hasWork && !(await askConfirm('Start the live interview?', 'The answers you typed or recorded so far will be replaced.', 'Start'))) return;
+            let stream;
+            try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+            catch (e) { return showToast("Allow microphone access in your browser, then try again.", "error"); }
+            const L = { t, stream, log: { 1: [], 2: [], 3: [] }, fluency: {}, cue: '', onBtn: null, skipSay: null, finishListen: null, prepTimer: null };
+            live = L;
+            t.answers = {}; t.live = null; t.fluency = {}; t.feedbackMarkdown = ''; t.band = null;
+            ['speaking-work', 'speaking-result', 'speaking-part-tabs', 'speaking-cue-card'].forEach(id => lvEl(id)?.classList.add('hide'));   // the student must not see the questions in advance
+            lvEl('live-panel')?.classList.remove('hide');
+            lvPaint(L, { cue: '', q: '', status: '', buttons: [] });
+            lvEl('live-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            runLive(L).catch((err) => { if (L === live) { endLive(); showToast("The interview stopped: " + ((err && err.message) || 'unknown problem'), "error"); } });
+        });
+        document.querySelectorAll('.nav-btn, #btn-ai-speaking-card').forEach(b => b.addEventListener('click', () => { const L = live; if (!L) return; const kept = lvApply(L); endLive(); if (kept && b.id !== 'btn-ai-speaking-card') { try { renderSpeakingTest(L.t); } catch (e) {} } }));
 
         // --- VOCABULARY & GRAMMAR PRACTICE (AI-made drills, ready-made sets as backup) ---
         const VOCAB_TOPICS = ['Education', 'Environment', 'Technology', 'Health', 'Work & Money', 'Society', 'Travel & Culture', 'Science'];
