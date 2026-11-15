@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115g">
+    <link rel="stylesheet" href="style.css?v=20261115h">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -524,6 +524,7 @@
                         <button type="button" id="btn-dictate" class="sx-link">Or use live dictation</button>
                         <p class="sx-note">Your voice stays on your phone. Only the words are saved.</p>
                     </div>
+                    <div id="fluency-box" class="hide fl-card" aria-live="polite"></div>
 
                     <div class="sx-label">Your answer (typed from your voice, edit if needed)</div>
                     <textarea id="speaking-user-transcript" class="sx-area" placeholder="Tap Record Voice and speak: your words appear here. Or type your answer. Each part keeps its own answer."></textarea>
@@ -2949,6 +2950,7 @@ After the answer add "Why this is Band 8" with 4 short bullet points (structure,
                 if (aud) { try { aud.pause(); } catch (e) {} aud.removeAttribute('src'); aud.classList.add('hide'); }
                 if (!isRecordingNow() && !transcribing) document.getElementById('rec-status')?.classList.add('hide');
             }
+            renderFluency();
         }
 
         function renderSpeakingTest(testObj) {
@@ -3067,8 +3069,9 @@ Return JSON only: {"p1":{"topic":"...","qs":["","","",""]},"p2":{"prompt":"Descr
             box.innerHTML = `<span class="text-emerald-400 animate-pulse">✨ Marking your Speaking answers...</span>`;
             const body = t.parts ? answered.map(p => `### Part ${p}\nQuestions:\n${speakingPartText(t, p)}\n\nCandidate answer:\n"${t.answers[p].trim()}"`).join('\n\n') : `Cue card:\n${t.cardMarkdown || "Speaking Part 2"}\n\nCandidate answer:\n"${t.userTranscript.trim()}"`;
             const missing = t.parts && answered.length < 3 ? `Only Part${answered.length > 1 ? 's' : ''} ${answered.join(', ')} of 3 were answered; mention this and mark only what was said.` : "";
+            const measured = answered.map(p => { const f = t.fluency?.[t.parts ? p : 0]; return f ? `${t.parts ? 'Part ' + p + ': ' : ''}${fluencyLine(f)}` : ''; }).filter(Boolean).join('\n');
             const reply = await askIELTSAI(`You are a strict, fair IELTS Speaking examiner. Mark the candidate's answers below. The answers are transcripts typed or produced by speech recognition, so judge Pronunciation only from word choice and any clear signs in the text, and say that pronunciation cannot be assessed accurately from text. ${missing}
-
+${measured ? `\nMeasured from the candidate's audio recording (reliable, use it as evidence for Fluency & Coherence):\n${measured}\n` : ''}
 ${body}
 
 Score Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy and Pronunciation from 1 to 9 in half-bands; overall = average rounded to the nearest 0.5. Do not inflate scores.
@@ -3113,18 +3116,119 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             }
         }
 
+        // ---- Fluency from the recording: Whisper gives a time for every word, so pace, pauses and fillers can be measured ----
+        function fluencyFromWords(words) {
+            const HES = new Set(['um', 'umm', 'uh', 'uhh', 'er', 'erm', 'ah', 'hmm', 'hm', 'mm', 'mmm', 'eh']);
+            const OK_REPEAT = new Set(['very', 'so', 'really', 'no', 'yes', 'that', 'had', 'bye', 'ha']);
+            const w = (words || []).filter(x => x && typeof x.word === 'string' && isFinite(x.start) && isFinite(x.end));
+            if (w.length < 8) return null;
+            const clean = (x) => x.word.toLowerCase().replace(/[^a-z']/g, '');
+            const f = { sec: Math.max(1, w[w.length - 1].end - w[0].start), words: 0, hes: 0, fill: 0, repeats: 0, pauses: 0, long: 0, pauseSec: 0, maxPause: 0, run: 0 };
+            let run = 0, prevTok = '', prevRaw = '';
+            for (let i = 0; i < w.length; i++) {
+                const raw = w[i].word.trim(), tok = clean(w[i]);
+                if (!tok) continue;
+                if (i > 0) {
+                    const gap = w[i].start - w[i - 1].end;
+                    const endedSentence = /[.?!]$/.test(prevRaw);
+                    if (gap >= 0.8 && (!endedSentence || gap >= 2)) {
+                        f.pauses++; f.pauseSec += gap; if (gap >= 1.5) f.long++; if (gap > f.maxPause) f.maxPause = gap;
+                        f.run = Math.max(f.run, run); run = 0;
+                    }
+                }
+                if (HES.has(tok)) { f.hes++; }
+                else {
+                    f.words++; run++;
+                    const nextRaw = (w[i + 1] && w[i + 1].word) || '';
+                    const commaAround = /,$/.test(prevRaw) || /,$/.test(raw) || /^,/.test(nextRaw);
+                    if (tok === 'like' && commaAround) f.fill++;
+                    else if (tok === 'know' && prevTok === 'you' && commaAround) f.fill++;
+                    else if (tok === 'mean' && prevTok === 'i' && commaAround) f.fill++;
+                    if (tok === prevTok && !OK_REPEAT.has(tok)) f.repeats++;
+                }
+                prevTok = HES.has(tok) ? prevTok : tok; prevRaw = raw;
+            }
+            f.run = Math.max(f.run, run);
+            f.pauseSec = Math.round(f.pauseSec * 10) / 10; f.maxPause = Math.round(f.maxPause * 10) / 10; f.sec = Math.round(f.sec * 10) / 10;
+            return f;
+        }
+        function mergeFluency(a, b) {
+            if (!a) return b; if (!b) return a;
+            const o = {}; ['sec', 'words', 'hes', 'fill', 'repeats', 'pauses', 'long', 'pauseSec'].forEach(k => o[k] = Math.round(((a[k] || 0) + (b[k] || 0)) * 10) / 10);
+            o.maxPause = Math.max(a.maxPause || 0, b.maxPause || 0); o.run = Math.max(a.run || 0, b.run || 0);
+            return o;
+        }
+        // The four measures with a simple traffic-light state. These are guide numbers, not an official band.
+        function fluencyMeasures(f) {
+            const min = f.sec / 60;
+            const wpm = Math.round(f.words / min);
+            const ppm = f.pauses / min;
+            const fillAll = f.hes + f.fill, rate = fillAll / Math.max(1, f.words) * 100;
+            return {
+                wpm, wpmState: wpm < 90 ? 'bad' : wpm < 110 ? 'warn' : wpm <= 175 ? 'ok' : 'warn',
+                wpmWord: wpm < 90 ? 'Slow' : wpm < 110 ? 'A little slow' : wpm <= 175 ? 'Natural' : 'Fast',
+                ppm, pauseState: ppm <= 3 ? 'ok' : ppm <= 6 ? 'warn' : 'bad',
+                fillAll, rate, fillState: rate <= 3 ? 'ok' : rate <= 6 ? 'warn' : 'bad',
+                runState: f.run >= 15 ? 'ok' : f.run >= 8 ? 'warn' : 'bad'
+            };
+        }
+        function fluencyLine(f) {
+            const m = fluencyMeasures(f);
+            return `pace ${m.wpm} words per minute (natural is about 110-175); ${f.pauses} hesitation pause${f.pauses === 1 ? '' : 's'} over 0.8 s in ${Math.round(f.sec)} s of speech (longest ${f.maxPause} s, ${f.long} over 1.5 s); ${m.fillAll} filler${m.fillAll === 1 ? '' : 's'} (um, uh, like, you know) = ${m.rate.toFixed(1)} per 100 words; ${f.repeats} repeated word${f.repeats === 1 ? '' : 's'}; longest stretch without hesitating ${f.run} words.`;
+        }
+        function fluencyHTML(f) {
+            const m = fluencyMeasures(f);
+            const good = [m.wpmState, m.pauseState, m.fillState, m.runState].filter(x => x === 'ok').length;
+            let tip;
+            if (m.pauseState === 'bad' || (f.long >= 3)) tip = 'You stopped to think quite often. When you need time, say a short phrase such as <i>"That is an interesting question..."</i> instead of going silent.';
+            else if (m.fillState === 'bad') tip = 'Fillers are frequent. Try a short silent pause instead of <i>um</i> or <i>like</i>: it sounds more confident.';
+            else if (m.wpmState === 'bad' || m.wpmState === 'warn' && m.wpm < 110) tip = 'Your pace is slow. Speak a little faster and link ideas with <i>because</i>, <i>so</i> and <i>although</i>.';
+            else if (m.wpm > 175) tip = 'You speak very fast. Slow down slightly so every word is clear.';
+            else if (m.runState === 'bad') tip = 'Your sentences are short and broken. Try to say longer ideas in one go: a reason, then an example.';
+            else tip = 'Your pace and flow sound natural. Keep it up.';
+            const tile = (st, big, small, label) => `<div class="fl-t ${st}"><span>${label}</span><b>${big}</b><em>${small}</em></div>`;
+            return `<div class="fl-h"><b>Fluency check</b><span>${good} of 4 on track</span></div>
+                <div class="fl-grid">
+                    ${tile(m.wpmState, m.wpm + ' <small>wpm</small>', m.wpmWord, 'Speed')}
+                    ${tile(m.pauseState, f.pauses, f.pauses ? 'longest ' + f.maxPause + ' s' : 'no long gaps', 'Pauses')}
+                    ${tile(m.fillState, m.fillAll, m.rate.toFixed(1) + ' per 100 words', 'Fillers')}
+                    ${tile(m.runState, f.run + ' <small>words</small>', 'longest flow', 'In one go')}
+                </div>
+                <p class="fl-tip">${tip}${f.repeats ? ` You repeated ${f.repeats} word${f.repeats > 1 ? 's' : ''} (like <i>"the the"</i>).` : ''}</p>
+                <p class="fl-note">Measured from your recording (${Math.round(f.sec)} s${f.sec < 20 ? ', quite short, so the figures are rough' : ''}). It can miss some <i>ums</i>. A guide, not an official band.</p>`;
+        }
+        const fluKey = (part) => (activeSpeakingTest && activeSpeakingTest.parts) ? part : 0;
+        function renderFluency() {
+            const box = document.getElementById('fluency-box'); if (!box) return;
+            const f = activeSpeakingTest?.fluency?.[fluKey(speakPart)];
+            box.classList.toggle('hide', !f);
+            box.innerHTML = f ? fluencyHTML(f) : '';
+        }
+
+        // Returns { text, words }. words (with times) is only there when Whisper could give it; the text always works.
         async function transcribeBlob(blob, ext) {
             await ensureAIModels();
             if (!whisperModels.length) throw new Error("voice-to-text isn't available on this AI account");
             let lastErr;
             for (const model of whisperModels.slice(0, 2)) {
-                try {
-                    const fd = new FormData();
-                    fd.append('file', blob, `speech.${ext}`); fd.append('model', model); fd.append('language', 'en'); fd.append('response_format', 'json'); fd.append('temperature', '0');
-                    const r = await aiRequest("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { "Authorization": `Bearer ${getBuiltInKey()}` }, body: fd }, 45000);
-                    if (r.ok) return String(r.body?.text || '').trim();
-                    lastErr = new Error(`HTTP ${r.status}`);
-                } catch (e) { lastErr = e && e.name === 'AbortError' ? new Error('it took too long') : e; }
+                for (const timed of [true, false]) {
+                    try {
+                        const fd = new FormData();
+                        fd.append('file', blob, `speech.${ext}`); fd.append('model', model); fd.append('language', 'en'); fd.append('temperature', '0');
+                        if (timed) {
+                            fd.append('response_format', 'verbose_json'); fd.append('timestamp_granularities[]', 'word');
+                            fd.append('prompt', 'Umm, let me think, like, hmm... Okay, so, uh, I think, you know, it is, er, quite interesting.');
+                        } else fd.append('response_format', 'json');
+                        const r = await aiRequest("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { "Authorization": `Bearer ${getBuiltInKey()}` }, body: fd }, 45000);
+                        if (r.ok) {
+                            let text = String(r.body?.text || '').trim();
+                            if (timed && /^umm, let me think, like, hmm/i.test(text)) text = '';   // silence can make Whisper echo its own hint
+                            return { text, words: timed && text && Array.isArray(r.body?.words) ? r.body.words : null };
+                        }
+                        lastErr = new Error(`HTTP ${r.status}`);
+                        if (!(r.status === 400 || r.status === 422)) break;   // only a rejected option is worth retrying plain
+                    } catch (e) { lastErr = e && e.name === 'AbortError' ? new Error('it took too long') : e; break; }
+                }
             }
             throw lastErr || new Error('unknown problem');
         }
@@ -3161,9 +3265,14 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
                 transcribing = true;
                 recStatus('⏳ Turning your voice into text... (about 5 seconds)', 'text-purple-300 animate-pulse');
                 try {
-                    const text = await transcribeBlob(blob, ext);
+                    const { text, words } = await transcribeBlob(blob, ext);
                     if (!text) recStatus('⚠ No speech was heard. Check your microphone and try again, or type your answer.', 'text-amber-300');
-                    else { addAnswerText(recPart, text); recStatus(`✅ Done. Read the text below, fix any mistakes, then press Mark.`, 'text-emerald-400'); }
+                    else {
+                        addAnswerText(recPart, text);
+                        const fl = fluencyFromWords(words);
+                        if (fl && activeSpeakingTest) { const k = fluKey(recPart); activeSpeakingTest.fluency = { ...(activeSpeakingTest.fluency || {}), [k]: mergeFluency(activeSpeakingTest.fluency?.[k], fl) }; renderFluency(); }
+                        recStatus(`✅ Done. Read the text below, fix any mistakes, then press Mark.`, 'text-emerald-400');
+                    }
                 } catch (err) {
                     recStatus(`⚠ Couldn't turn the recording into text (${escapeHTML(err.message || 'problem')}). Type what you said below, or use live dictation.`, 'text-amber-300');
                 } finally { transcribing = false; }
