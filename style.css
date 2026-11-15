@@ -364,9 +364,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .db-q { display: flex; align-items: center; gap: 0.7rem; background: rgba(15,23,42,0.86); border: 1px solid rgba(148,163,184,0.2); border-radius: 1rem; padding: 0.75rem; cursor: pointer; text-align: left; color: #f1f5f9; font-family: inherit; font-weight: 800; font-size: 0.95rem; }
 .db-q small { display: block; font-weight: 500; font-size: 0.72rem; color: #94a3b8; }
 .db-q .db-ic { width: 2.5rem; height: 2.5rem; font-size: 1.05rem; }
-.db-word { background: linear-gradient(135deg, rgba(124,58,237,0.28), rgba(30,64,175,0.28)); border: 1px solid rgba(167,139,250,0.4); border-radius: 1.1rem; padding: 0.95rem; display: flex; flex-direction: column; gap: 0.35rem; }
-.db-word .db-eyebrow { color: #c4b5fd; }
-.db-word p { margin: 0; }
 .db-chip { display: inline-block; padding: 0.2rem 0.6rem; border: 1px solid; border-radius: 2rem; font-size: 0.72rem; font-weight: 700; margin: 0 0.3rem 0.3rem 0; }
 .lb-list { display: flex; flex-direction: column; }
 .lb-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.4rem; border-bottom: 1px solid rgba(148,163,184,0.15); }

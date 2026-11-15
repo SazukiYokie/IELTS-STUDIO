@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115c">
+    <link rel="stylesheet" href="style.css?v=20261115d">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -208,16 +208,6 @@
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=grammar]').click()"><span class="db-ic" style="background:rgba(139,92,246,.2);color:#a78bfa"><i class="fa-solid fa-spell-check"></i></span><span>Grammar<small>Short drills</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=mistakes]').click()"><span class="db-ic" style="background:rgba(244,63,94,.2);color:#fb7185"><i class="fa-solid fa-triangle-exclamation"></i></span><span>Mistake Notebook<small>Retry what you missed</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=report]').click()"><span class="db-ic" style="background:rgba(56,189,248,.2);color:#38bdf8"><i class="fa-solid fa-file-lines"></i></span><span>Progress Report<small>Print or save as PDF</small></span></button>
-                    </div>
-
-                    <div class="db-word">
-                        <p class="db-eyebrow"><i class="fa-solid fa-sparkles" style="color:#fde047"></i> Daily Band 8.5 power word</p>
-                        <p id="booster-word" style="font-size:1.02rem;font-weight:800;color:#fff">Mitigate (v.) — To make something less severe, harmful, or painful.</p>
-                        <p id="booster-ex" style="font-size:.85rem;color:#a5f3fc;font-style:italic">"Governments must invest in renewable energy to mitigate the devastating impacts of climate change."</p>
-                        <div class="sx-row" style="margin-top:.3rem">
-                            <button type="button" id="btn-speak-booster" class="sx-btn sx-btn-ghost" style="flex:0 0 auto"><i class="fa-solid fa-volume-high"></i></button>
-                            <button type="button" id="btn-next-booster" class="sx-btn" style="background:#7c3aed"><i class="fa-solid fa-bolt"></i>Next word</button>
-                        </div>
                     </div>
 
                     <div class="db-card">
@@ -686,29 +676,6 @@
             box.appendChild(el);
             setTimeout(() => el.remove(), Math.min(9000, 3000 + String(msg).length * 45));
         }
-
-        // Daily Booster Flashcards
-        const boosters = [
-            { w: "Mitigate (v.) — To make something less severe, harmful, or painful.", ex: '"Governments must invest in renewable energy to mitigate the devastating impacts of climate change."' },
-            { w: "Ubiquitous (adj.) — Present, appearing, or found everywhere.", ex: '"Smartphones and digital platforms have become ubiquitous in modern education."' },
-            { w: "Exacerbate (v.) — To make a problem, bad situation, or negative feeling worse.", ex: '"Rapid, unplanned urbanization often exacerbates housing shortages and traffic congestion."' },
-            { w: "Pragmatic (adj.) — Dealing with things sensibly and realistically in a practical way.", ex: '"Policymakers need a pragmatic approach to balancing economic growth with environmental protection."' },
-            { w: "Catalyst (n.) — A factor or event that precipitates a major change.", ex: '"The global shift toward remote work acted as a catalyst for digital transformation."' },
-            { w: "Indispensable (adj.) — Absolutely necessary; essential.", ex: '"Critical thinking skills are indispensable for university students navigating complex research."' }
-        ];
-        let bIdx = 0;
-        document.getElementById('btn-next-booster')?.addEventListener('click', () => {
-            bIdx = (bIdx + 1) % boosters.length;
-            document.getElementById('booster-word').textContent = boosters[bIdx].w;
-            document.getElementById('booster-ex').textContent = boosters[bIdx].ex;
-        });
-        document.getElementById('btn-speak-booster')?.addEventListener('click', () => {
-            if (!('speechSynthesis' in window)) return;
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(boosters[bIdx].w.split('—')[0]);
-            u.lang = "en-GB";
-            window.speechSynthesis.speak(u);
-        });
 
         // --- 1. COMPLETE ENGLISH GRAMMAR & VOCABULARY ACADEMY (ALL 12 TENSES INCLUDED!) ---
         const academyCurriculum = {
