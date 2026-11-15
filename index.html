@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115e">
+    <link rel="stylesheet" href="style.css?v=20261115f">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -113,6 +113,7 @@
                 </div>
                 <nav class="p-2.5 space-y-1">
                     <button type="button" data-target="dashboard" class="nav-btn bg-blue-600/20 text-blue-400 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-house w-5"></i>Dashboard</button>
+                    <button type="button" data-target="mock" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-flag-checkered text-amber-400 w-5"></i>Full Mock Test</button>
                     <button type="button" data-target="course" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-bolt text-yellow-400 w-5"></i>English Course</button>
                     <button type="button" data-target="guide" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-circle-info text-pink-400 w-5"></i>IELTS Guide</button>
                     <button type="button" data-target="history" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-chart-line text-indigo-400 w-5"></i>My Scores & Tests</button>
@@ -206,6 +207,7 @@
                     <div class="db-quick">
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=vocab]').click()"><span class="db-ic" style="background:rgba(20,184,166,.2);color:#2dd4bf"><i class="fa-solid fa-book-bookmark"></i></span><span>Vocabulary<small>New words and quizzes</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=grammar]').click()"><span class="db-ic" style="background:rgba(139,92,246,.2);color:#a78bfa"><i class="fa-solid fa-spell-check"></i></span><span>Grammar<small>Short drills</small></span></button>
+                        <button type="button" class="db-q" onclick="document.querySelector('[data-target=mock]').click()"><span class="db-ic" style="background:rgba(245,158,11,.2);color:#fbbf24"><i class="fa-solid fa-flag-checkered"></i></span><span>Full Mock Test<small>All 4 skills, overall band</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=mistakes]').click()"><span class="db-ic" style="background:rgba(244,63,94,.2);color:#fb7185"><i class="fa-solid fa-triangle-exclamation"></i></span><span>Mistake Notebook<small>Retry what you missed</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=report]').click()"><span class="db-ic" style="background:rgba(56,189,248,.2);color:#38bdf8"><i class="fa-solid fa-file-lines"></i></span><span>Progress Report<small>Print or save as PDF</small></span></button>
                     </div>
@@ -312,6 +314,7 @@
                         <button type="button" data-filter="reading" class="hist-filter-btn qz-chip">Reading</button>
                         <button type="button" data-filter="writing" class="hist-filter-btn qz-chip">Writing</button>
                         <button type="button" data-filter="speaking" class="hist-filter-btn qz-chip">Speaking</button>
+                        <button type="button" data-filter="mock" class="hist-filter-btn qz-chip">Mock tests</button>
                     </div>
                     <div id="history-list-container" class="hx-list"></div>
                   </div>
@@ -567,6 +570,13 @@
                     <div class="sx-head rp-noprint"><div class="sx-head-ic"><i class="fa-solid fa-file-lines"></i></div><div><h2>Progress Report</h2><p>Your bands, trends and what to practise next</p></div>
                         <button type="button" id="rp-print" class="sx-btn sx-btn-main"><i class="fa-solid fa-print"></i>Print / PDF</button></div>
                     <div id="rp-sheet" class="rp-sheet"></div>
+                  </div>
+                </div>
+
+                <div id="view-mock" class="view-section hide">
+                  <div class="sx sx-k">
+                    <div class="sx-head"><div class="sx-head-ic"><i class="fa-solid fa-flag-checkered"></i></div><div><h2>Full Mock Test</h2><p>All four skills, then your overall band</p></div></div>
+                    <div id="mt-body" class="sx-work"></div>
                   </div>
                 </div>
 
@@ -1084,7 +1094,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             const histBox = document.getElementById('history-list-container');
             if (histBox) {
                 const fList = activeHistoryFilter === "all" ? userSavedTests : userSavedTests.filter(t => t.module === activeHistoryFilter);
-                const ICONS = { listening: 'fa-headphones', reading: 'fa-book-open', writing: 'fa-pen-nib', speaking: 'fa-microphone' };
+                const ICONS = { listening: 'fa-headphones', reading: 'fa-book-open', writing: 'fa-pen-nib', speaking: 'fa-microphone', mock: 'fa-flag-checkered' };
                 histBox.innerHTML = fList.length === 0
                     ? `<div class="hx-empty"><i class="fa-regular fa-folder-open" style="font-size:1.6rem;display:block;margin-bottom:.4rem"></i>No saved tests here yet.<br>Finish a practice test and it will appear in this list.</div>`
                     : fList.map(t => `
@@ -1103,7 +1113,8 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
                         const mod = btn.getAttribute('data-mod');
                         if (!found) return;
                         if (mod === 'listening' || mod === 'reading') { openExamReview(found); return; }
-                        if (mod === 'writing') renderWritingTest(found);
+                        if (mod === 'mock') { mockViewing = found; mockViewingFresh = true; }
+                        else if (mod === 'writing') renderWritingTest(found);
                         else if (mod === 'speaking') renderSpeakingTest(found);
                         document.querySelector(`[data-target="${mod}"]`)?.click();
                     });
@@ -1161,7 +1172,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             html('writing-prompt-box', '<div class="sx-empty"><b>Pick a task to begin</b><span>You get an exam-style question, a timer and AI marking on the 4 official IELTS criteria.</span></div>');
             document.querySelectorAll('.sx-pick').forEach(b => b.classList.remove('on')); document.querySelectorAll('#view-writing .sx-meter i').forEach(m => { m.style.width = '0'; }); document.querySelectorAll('#view-writing .sx-count').forEach(c => c.classList.remove('ok'));
             html('speaking-cue-card', '<div class="sx-empty"><b>Start a full Speaking test</b><span>Press <em>New test</em> for a Part 1 interview, a Part 2 cue card and Part 3 discussion questions.</span></div>'); hide('speaking-part-tabs');
-            html('speaking-sample-box', ''); try { html('rp-sheet', ''); } catch (e) {} try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
+            html('speaking-sample-box', ''); try { mock = null; mockViewing = null; html('mt-body', ''); } catch (e) {} try { html('rp-sheet', ''); } catch (e) {} try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
             html('writing-feedback-box', ''); hide('writing-feedback-box');
             html('listening-transcript-box', ''); hide('listening-transcript-box');
             txt('listening-score-box', ''); txt('reading-score-box', '');
@@ -1240,6 +1251,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             const rec = { id, module, band, score, total, title: String(title || "").slice(0, 120), testId: testId || null, sig: sig || null, ts: Date.now(), dateStr: new Date().toISOString().split('T')[0] };
             userResults.push(rec);
             try { localStorage.setItem(getResultsCacheKey(user.uid), JSON.stringify(userResults)); } catch (e) {}
+            try { mockOnResult(rec); } catch (e) { console.warn('mock', e); }
             renderProgress();
             try { await setDoc(doc(db, 'users', user.uid, 'results', id), rec); } catch (e) { console.warn("Result save:", e?.code || e); }
             syncPublicProfile({ points: increment(Math.round(band * 10)) });
@@ -3514,6 +3526,97 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
         }
         document.querySelectorAll('[data-target="report"]').forEach(b => b.addEventListener('click', renderReport));
         document.getElementById('rp-print')?.addEventListener('click', () => { renderReport(); window.print(); });
+
+        // ===== Full Mock Test: Listening, Reading, Writing (full) and Speaking in one run, then the overall band =====
+        const MOCK_STAGES = [
+            { k: 'listening', label: 'Listening', icon: 'fa-headphones', color: '#22d3ee', info: '4 sections, 40 questions · about 30 minutes' },
+            { k: 'reading', label: 'Reading', icon: 'fa-book-open', color: '#34d399', info: '3 passages, 40 questions · 60 minutes' },
+            { k: 'writing', label: 'Writing', icon: 'fa-pen-nib', color: '#fbbf24', info: 'Task 1 + Task 2 · 60 minutes' },
+            { k: 'speaking', label: 'Speaking', icon: 'fa-microphone', color: '#fb7185', info: 'Parts 1, 2 and 3 · 11 to 14 minutes' }
+        ];
+        let mock = null, mockViewing = null, mockLoadedFor = '';
+        const mockKey = () => 'IELTS_MOCK_' + (auth.currentUser?.uid || 'x');
+        function mockSave() {
+            const u = auth.currentUser; if (!u) return;
+            try { if (mock) localStorage.setItem(mockKey(), JSON.stringify(mock)); else localStorage.removeItem(mockKey()); } catch (e) {}
+        }
+        function mockLoad() {
+            const u = auth.currentUser; if (!u || mockLoadedFor === u.uid) return;
+            mockLoadedFor = u.uid;
+            try { mock = JSON.parse(localStorage.getItem(mockKey()) || 'null'); } catch (e) { mock = null; }
+        }
+        function mockOverall(stages) { const b = MOCK_STAGES.map(x => stages[x.k]?.band).filter(v => typeof v === 'number'); return b.length === 4 ? Math.round((b.reduce((a, c) => a + c, 0) / 4) * 2) / 2 : null; }
+        function mockOnResult(rec) {
+            if (!mock || mock.done || mock.active !== rec.module) return;
+            if (rec.module === 'writing' && !String(rec.sig || '').startsWith('wf:')) return;          // Writing counts only from the full 60-minute test
+            if ((rec.module === 'listening' || rec.module === 'reading') && !(rec.total >= 30)) return; // and Reading / Listening only from the full 40-question tests
+            mock.stages[rec.module] = { band: rec.band, title: rec.title || '' };
+            mock.active = null;
+            const label = MOCK_STAGES.find(x => x.k === rec.module).label;
+            const overall = mockOverall(mock.stages);
+            if (overall != null) { mockFinish(overall); return; }
+            mockSave(); renderMock();
+            showToast(`✓ ${label} recorded: Band ${rec.band.toFixed(1)}. Go back to Full Mock Test for the next skill.`, "success");
+        }
+        async function mockFinish(overall) {
+            mock.done = true; mock.overall = overall;
+            const today = new Date().toISOString().split('T')[0], st = mock.stages;
+            const test = { module: 'mock', title: `Full Mock Test (${today})`, promptText: 'Full Mock Test', stages: st, band: overall, gradedDateStr: today,
+                scoreLabel: `Band ${overall.toFixed(1)} (L ${st.listening.band.toFixed(1)} · R ${st.reading.band.toFixed(1)} · W ${st.writing.band.toFixed(1)} · S ${st.speaking.band.toFixed(1)})` };
+            mockSave(); renderMock();
+            showToast(`🏁 Mock test complete: overall Band ${overall.toFixed(1)}`, "success");
+            const saved = await saveTestToAccount(test);
+            if (saved) { mock.savedId = saved.id; mockSave(); }
+        }
+        function mockLaunch(k) {
+            if (!mock || mock.done || mock.stages[k]) return;
+            mock.active = k; mockSave();
+            if (k === 'listening' || k === 'reading') { openExam(k, 'full'); return; }
+            document.querySelector(`[data-target="${k}"]`)?.click();
+            if (k === 'writing') wfShowIntro();
+            else if (!activeSpeakingTest || activeSpeakingTest.band != null) document.getElementById('btn-ai-speaking-card')?.click();
+        }
+        function mockResultHTML(st, overall, title) {
+            const rows = MOCK_STAGES.map(x => `<div class="wf-part"><span>${x.label}</span><b>${st[x.k] ? Number(st[x.k].band).toFixed(1) : '–'}</b></div>`).join('');
+            const weakest = [...MOCK_STAGES].filter(x => st[x.k]).sort((a, b) => st[a.k].band - st[b.k].band)[0];
+            return `<div class="sx-result"><div class="sx-fb-head"><div class="sx-band"><b>${Number(overall).toFixed(1)}</b><span>Overall</span></div><div><h3>${escapeHTML(title || 'Full Mock Test')}</h3><p>Average of the four skills, rounded to 0.5 · AI estimate</p></div></div>
+                <div class="mt-grid">${rows}</div>
+                ${weakest ? `<p class="sx-note" style="text-align:left;margin-top:.7rem">Your lowest skill is <b>${weakest.label}</b>. Practise it first.</p>` : ''}</div>
+                <div class="sx-row"><button type="button" class="sx-btn sx-btn-ghost" id="mt-report"><i class="fa-solid fa-file-lines"></i>Progress report</button><button type="button" class="sx-btn sx-btn-main" id="mt-new"><i class="fa-solid fa-rotate-right"></i>New mock test</button></div>`;
+        }
+        function renderMock() {
+            const box = document.getElementById('mt-body'); if (!box) return;
+            mockLoad();
+            if (mockViewing) { box.innerHTML = mockResultHTML(mockViewing.stages || {}, mockViewing.band, mockViewing.title) + `<button type="button" class="sx-link" id="mt-back" style="align-self:center">Back to the mock test page</button>`; return; }
+            if (!mock) {
+                box.innerHTML = `<div class="sx-paper"><div class="sx-empty"><b>A real exam, from start to finish</b><span>Do Listening, Reading, Writing and Speaking one after the other, each in exam conditions. When all four are finished you get your overall band, the same way IELTS does it. You can take breaks between skills. Your progress is kept on this device.</span></div></div>
+                    <button type="button" id="mt-new" class="sx-btn sx-btn-main"><i class="fa-solid fa-flag-checkered"></i>Start a new mock test</button>`;
+                return;
+            }
+            if (mock.done) { box.innerHTML = mockResultHTML(mock.stages, mock.overall, 'Mock test complete'); return; }
+            const done = MOCK_STAGES.filter(x => mock.stages[x.k]).length;
+            const next = MOCK_STAGES.find(x => !mock.stages[x.k]);
+            box.innerHTML = `<div class="sx-paper mt-prog"><b>${done} of 4 skills finished</b><div class="sx-meter"><i style="width:${done * 25}%"></i></div><span>Do them in this order, like the real exam. You can stop and come back later.</span></div>
+                ${MOCK_STAGES.map(x => { const r = mock.stages[x.k]; const isNext = next && next.k === x.k;
+                    return `<div class="mt-stage${r ? ' done' : ''}${isNext ? ' next' : ''}"><div class="mt-ic" style="background:${x.color}"><i class="fa-solid ${x.icon}"></i></div>
+                        <div class="mt-main"><b>${x.label}</b><span>${x.info}</span></div>
+                        ${r ? `<div class="mt-band">${Number(r.band).toFixed(1)}</div>` : `<button type="button" class="sx-btn ${isNext ? 'sx-btn-main' : 'sx-btn-ghost'}" data-mt="${x.k}">${mock.active === x.k ? 'Continue' : 'Start'}</button>`}</div>`; }).join('')}
+                <button type="button" class="sx-link" id="mt-stop" style="align-self:center">Stop this mock test</button>`;
+        }
+        document.getElementById('view-mock')?.addEventListener('click', async (e) => {
+            const go = e.target.closest('[data-mt]');
+            if (go) { mockLaunch(go.dataset.mt); return; }
+            if (e.target.closest('#mt-new')) {
+                mockViewing = null;
+                mock = { id: 'mock_' + Date.now(), startedAt: Date.now(), stages: {}, active: null, done: false };
+                mockSave(); renderMock(); return;
+            }
+            if (e.target.closest('#mt-stop')) { if (await askConfirm('Stop this mock test?', 'The skills you finished will not be combined into an overall band.', 'Stop')) { mock = null; mockSave(); renderMock(); } return; }
+            if (e.target.closest('#mt-back')) { mockViewing = null; renderMock(); return; }
+            if (e.target.closest('#mt-report')) { document.querySelector('[data-target="report"]')?.click(); }
+        });
+        let mockViewingFresh = false;
+        document.querySelectorAll('[data-target="mock"]').forEach(b => b.addEventListener('click', () => { if (!mockViewingFresh) mockViewing = null; mockViewingFresh = false; renderMock(); }));
 
         document.querySelectorAll('[data-target="vocab"]').forEach(b => b.addEventListener('click', loadVocabBank));
 
