@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115i">
+    <link rel="stylesheet" href="style.css?v=20261115j">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -434,6 +434,17 @@
                     <div id="writing-prompt-box" class="sx-paper"><div class="sx-empty"><b>Pick a task to begin</b><span>You get an exam-style question, a timer and AI marking on the 4 official IELTS criteria.</span></div></div>
 
                     <div id="writing-work" class="sx-work hide">
+                    <details id="wp-plan" class="sx-fold">
+                        <summary><i class="fa-solid fa-list-check" style="color:#34d399"></i>Plan first: 4 short notes</summary>
+                        <div class="sx-fold-body">
+                            <label class="wp-l" id="wp-l0" for="wp-0"></label><textarea id="wp-0" class="wp-in" rows="2"></textarea>
+                            <label class="wp-l" id="wp-l1" for="wp-1"></label><textarea id="wp-1" class="wp-in" rows="2"></textarea>
+                            <label class="wp-l" id="wp-l2" for="wp-2"></label><textarea id="wp-2" class="wp-in" rows="2"></textarea>
+                            <label class="wp-l" id="wp-l3" for="wp-3"></label><textarea id="wp-3" class="wp-in" rows="2"></textarea>
+                            <button type="button" id="wp-check" class="sx-btn sx-btn-ghost"><i class="fa-solid fa-magnifying-glass" style="color:#34d399"></i>Check my plan</button>
+                            <div id="wp-fb" class="hide sx-result ai-prose"></div>
+                        </div>
+                    </details>
                     <textarea id="writing-area" class="sx-area" placeholder="Type your answer here. Plan first: introduction, 2-3 body paragraphs, conclusion." spellcheck="false"></textarea>
                     <label class="sx-btn sx-btn-ghost sx-photo"><i class="fa-solid fa-camera" style="color:#38bdf8"></i>Wrote on paper? Photo of my handwriting<input type="file" id="hw-upload-single" accept="image/*" multiple class="hide"></label>
                     <p id="hw-note-single" class="sx-photo-note hide"></p>
@@ -441,11 +452,13 @@
                     <button type="button" id="btn-ai-grade-essay" class="sx-btn sx-btn-main"><i class="fa-solid fa-wand-magic-sparkles"></i>Mark my writing &amp; save score</button>
                     <div class="sx-row">
                         <button type="button" id="btn-ai-writing-sample" class="sx-btn sx-btn-ghost"><i class="fa-solid fa-lightbulb" style="color:#fbbf24"></i>Model answer</button>
+                        <button type="button" id="btn-ai-writing-rewrite" class="sx-btn sx-btn-ghost"><i class="fa-solid fa-code-compare" style="color:#34d399"></i>Band 7 rewrite</button>
                         <button type="button" id="btn-save-writing" class="sx-btn sx-btn-ghost"><i class="fa-solid fa-floppy-disk"></i>Save draft</button>
                     </div>
 
                     <div id="writing-feedback-box" class="hide sx-result ai-prose"></div>
                     <div id="writing-sample-box" class="hide sx-result ai-prose"></div>
+                    <div id="writing-rewrite-box" class="hide sx-result"></div>
                     </div>
                     </div>
 
@@ -1188,7 +1201,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             document.querySelectorAll('.sx-pick').forEach(b => b.classList.remove('on')); document.querySelectorAll('#view-writing .sx-meter i').forEach(m => { m.style.width = '0'; }); document.querySelectorAll('#view-writing .sx-count').forEach(c => c.classList.remove('ok'));
             html('speaking-cue-card', '<div class="sx-empty"><b>Start a full Speaking test</b><span>Press <em>New test</em> for a Part 1 interview, a Part 2 cue card and Part 3 discussion questions.</span></div>'); hide('speaking-part-tabs');
             try { endLive(); } catch (e) {} html('speaking-sample-box', ''); try { mock = null; mockViewing = null; html('mt-body', ''); } catch (e) {} try { html('rp-sheet', ''); } catch (e) {} try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
-            html('writing-feedback-box', ''); hide('writing-feedback-box');
+            html('writing-feedback-box', ''); hide('writing-feedback-box'); html('writing-rewrite-box', ''); hide('writing-rewrite-box');
             html('listening-transcript-box', ''); hide('listening-transcript-box');
             txt('listening-score-box', ''); txt('reading-score-box', '');
                         hide('chat-attachment-bar'); hide('rec-status');
@@ -2612,6 +2625,9 @@ Then a markdown table with columns Criterion | Band | Comment, then "Main proble
             document.getElementById('writing-work')?.classList.remove('hide');
             if (writingArea) writingArea.value = testObj.essayText || "";
             document.getElementById('writing-sample-box')?.classList.add('hide');
+            wpRender(testObj);
+            const rwb = document.getElementById('writing-rewrite-box');
+            if (rwb) { const rw = testObj.rewrite; if (rw && rw.rewrite && rw.essay === (testObj.essayText || '').trim()) { rwb.classList.remove('hide'); rwb.innerHTML = rewriteHTML(rw.essay, rw); } else { rwb.classList.add('hide'); rwb.innerHTML = ''; } }
             updateWordCount();
             setWritingTimer(task);
             const fb = document.getElementById('writing-feedback-box');
@@ -2891,6 +2907,93 @@ After the answer add "Why this is Band 8" with 4 short bullet points (structure,
         [['hw-upload-single', () => writingArea, 'hw-note-single'], ['hw-upload-full', () => wfEl('wf-area'), 'hw-note-full']].forEach(([id, area, note]) => {
             document.getElementById(id)?.addEventListener('change', async (e) => { const f = [...(e.target.files || [])]; e.target.value = ''; await readHandwriting(f, area(), note); });
         });
+
+        // ---- Writing planner (4 short notes before writing) and Band 7 rewrite shown side by side with the changes marked ----
+        const WP_LABELS = {
+            1: ['Overview: the main trend or biggest difference', 'Key feature 1 (use numbers)', 'Key feature 2 (use numbers)', 'A comparison or an exception'],
+            2: ['My opinion / position in one sentence', 'Main idea 1 + an example', 'Main idea 2 + an example', 'Conclusion in one sentence']
+        };
+        function wpRender(test) {
+            const task = test && test.task === 1 ? 1 : 2;
+            WP_LABELS[task].forEach((l, i) => {
+                const lab = document.getElementById('wp-l' + i), inp = document.getElementById('wp-' + i);
+                if (lab) lab.textContent = l;
+                if (inp) inp.value = (test && Array.isArray(test.plan) && test.plan[i]) || '';
+            });
+            document.getElementById('wp-fb')?.classList.add('hide');
+            const pl = document.getElementById('wp-plan'); if (pl) pl.open = false;
+        }
+        document.querySelectorAll('.wp-in').forEach(el => el.addEventListener('input', () => {
+            if (activeWritingTest) activeWritingTest.plan = [0, 1, 2, 3].map(i => document.getElementById('wp-' + i)?.value || '');
+        }));
+        document.getElementById('wp-check')?.addEventListener('click', async () => {
+            const t = activeWritingTest;
+            const notes = [0, 1, 2, 3].map(i => (document.getElementById('wp-' + i)?.value || '').trim());
+            if (!t) return showToast("Pick a task first.", "error");
+            if (notes.filter(Boolean).length < 2) return showToast("Write at least two short notes in your plan first.", "error");
+            if (aiBusyGuard()) return;
+            const task = t.task === 1 ? 1 : 2, fb = document.getElementById('wp-fb');
+            fb.classList.remove('hide'); fb.innerHTML = '<span class="text-purple-400 animate-pulse">✨ Reading your plan...</span>';
+            const reply = await askIELTSAI(`A student is planning an IELTS Academic Writing Task ${task} answer.\n\nTask:\n${t.promptText}\n\nTheir plan:\n${WP_LABELS[task].map((l, i) => `- ${l}: ${notes[i] || '(empty)'}`).join('\n')}\n\nIn under 120 words: say whether this plan fully answers the task, name the single biggest weakness, and give one concrete idea or one useful linking phrase to add. Be specific and kind. Plain text, no table.`, "You are a friendly, expert IELTS Writing teacher.", false, { maxTokens: 400, budgetMs: 25000 });
+            fb.innerHTML = reply ? formatAIMarkdown(reply) : aiFailHTML();
+        });
+
+        // word-level difference between the student's text and the rewrite (longest common subsequence)
+        function wrDiff(a, b) {
+            const tok = (s) => String(s).replace(/\n+/g, ' ¶ ').split(/\s+/).filter(Boolean);
+            const norm = (w) => w === '¶' ? '¶' : w.toLowerCase().replace(/[^a-z0-9']/g, '');
+            const A = tok(a), B = tok(b), n = A.length, m = B.length;
+            if (!n || !m || n * m > 1500000) return null;
+            const W = m + 1, dp = new Uint16Array((n + 1) * W);
+            for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i * W + j] = norm(A[i]) === norm(B[j]) ? dp[(i + 1) * W + j + 1] + 1 : Math.max(dp[(i + 1) * W + j], dp[i * W + j + 1]);
+            const left = [], right = []; let i = 0, j = 0;
+            while (i < n && j < m) {
+                if (norm(A[i]) === norm(B[j])) { left.push([A[i], 0]); right.push([B[j], 0]); i++; j++; }
+                else if (dp[(i + 1) * W + j] >= dp[i * W + j + 1]) { left.push([A[i], 1]); i++; }
+                else { right.push([B[j], 1]); j++; }
+            }
+            while (i < n) left.push([A[i++], 1]);
+            while (j < m) right.push([B[j++], 1]);
+            return { left, right };
+        }
+        function wrMark(list, tag) {
+            let out = '', run = [];
+            const flush = () => { if (run.length) { out += `<${tag}>${escapeHTML(run.join(' '))}</${tag}> `; run = []; } };
+            list.forEach(([w, changed]) => {
+                if (w === '¶') { flush(); out += '<br><br>'; return; }
+                if (changed) run.push(w); else { flush(); out += escapeHTML(w) + ' '; }
+            });
+            flush();
+            return out.replace(/^(<br>)+/, '').trim();
+        }
+        function rewriteHTML(orig, r) {
+            const d = wrDiff(orig, r.rewrite);
+            const left = d ? wrMark(d.left, 'del') : escapeHTML(orig).replace(/\n+/g, '<br><br>');
+            const right = d ? wrMark(d.right, 'ins') : escapeHTML(r.rewrite).replace(/\n+/g, '<br><br>');
+            const changes = (r.changes || []).slice(0, 6).map(c => `<li><s>${escapeHTML(c.from)}</s> <i class="fa-solid fa-arrow-right"></i> <b>${escapeHTML(c.to)}</b><span>${escapeHTML(c.why)}</span></li>`).join('');
+            return `<h3 class="sx-result-h">Your answer and a Band 7 version</h3>
+                <p class="wr-legend"><del>Removed or changed</del> <ins>New wording</ins> · Same ideas, same paragraphs, better language.</p>
+                <div class="wr-grid"><div class="wr-col"><h4>Your answer</h4><p>${left}</p></div><div class="wr-col wr-new"><h4>Band 7 version</h4><p>${right}</p></div></div>
+                ${changes ? `<h4 class="wr-h">The ${(r.changes || []).slice(0, 6).length} upgrades that matter most</h4><ul class="wr-list">${changes}</ul>` : ''}
+                <p class="wr-note">An AI-written example to learn from, not the only correct version. Try rewriting your own answer using these ideas.</p>`;
+        }
+        async function writingRewrite() {
+            const essay = writingArea?.value.trim() || '';
+            if (essay.split(/\s+/).filter(Boolean).length < 40) return showToast("Write at least 40 words first, then ask for a Band 7 version.", "error");
+            if (!activeWritingTest) return showToast("Pick a task first.", "error");
+            if (aiBusyGuard()) return;
+            const box = document.getElementById('writing-rewrite-box');
+            showResultBox(box); box.innerHTML = '<span class="text-amber-300 animate-pulse">✨ Rewriting your answer at Band 7...</span>';
+            const task = activeWritingTest.task === 1 ? 1 : 2;
+            const raw = await askIELTSAI(`Rewrite this IELTS Academic Writing Task ${task} response so that it would score Band 7. Keep the student's own ideas, their order and their paragraphs: do not add new arguments. Fix every grammar and spelling error, replace weak or repeated words with more precise vocabulary, and improve linking and sentence variety. Do not write at Band 9: use language a Band 6 student can learn from. Keep the length within 15% of the original.\n\nTask:\n${activeWritingTest.promptText}\n\nStudent response:\n${essay}\n\nReturn JSON only: {"rewrite":"the full rewritten response, paragraphs separated by a blank line","changes":[{"from":"exact short phrase from the student's text","to":"your replacement","why":"reason in 12 words or fewer"}]} with exactly 5 of the most useful changes.`, "You are a certified IELTS Writing examiner and teacher. Output valid JSON only.", true, { maxTokens: 2200, budgetMs: 60000 });
+            const p = parseJSONSafely(raw);
+            if (!raw || !p || typeof p.rewrite !== 'string' || p.rewrite.trim().split(/\s+/).length < 30) { box.innerHTML = raw ? '<p class="text-amber-300">⚠ The AI answer was not in the right shape. Tap Band 7 rewrite again.</p>' : aiFailHTML(); return; }
+            const changes = (Array.isArray(p.changes) ? p.changes : []).filter(c => c && typeof c.from === 'string' && typeof c.to === 'string' && typeof c.why === 'string').slice(0, 6);
+            const r = { rewrite: p.rewrite.trim(), changes, essay };
+            activeWritingTest = { ...activeWritingTest, rewrite: r };
+            box.innerHTML = rewriteHTML(essay, r);
+        }
+        document.getElementById('btn-ai-writing-rewrite')?.addEventListener('click', writingRewrite);
 
         // --- SPEAKING ARENA: full IELTS Speaking test (Part 1 interview, Part 2 cue card, Part 3 discussion) ---
         const SPEAKING_BANK = [

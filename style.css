@@ -572,3 +572,27 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .lv-status.warn, .lv-status.bad { color: #fcd34d; background: rgba(251,191,36,0.1); }
 .lv-actions { display: flex; flex-direction: column; gap: 0.5rem; }
 .lv-actions .sx-btn { width: 100%; padding: 0.9rem 1rem; }
+
+/* ---- Writing planner and Band 7 rewrite ---- */
+.wp-l { display: block; font-size: 0.78rem; font-weight: 700; color: #cbd5e1; margin: 0.55rem 0 0.2rem; }
+.wp-in { width: 100%; box-sizing: border-box; background: #fff; color: #0f172a; border: 2px solid #cbd5e1; border-radius: 0.7rem; padding: 0.5rem 0.65rem; font-size: 0.92rem; line-height: 1.4; font-family: inherit; resize: vertical; outline: none; }
+.wp-in:focus { border-color: #34d399; }
+#wp-check { margin-top: 0.7rem; width: 100%; }
+#wp-fb { margin-top: 0.6rem; }
+.wr-legend { font-size: 0.78rem; color: #94a3b8; margin: 0 0 0.6rem; }
+.wr-legend del, .wr-col del { background: rgba(244,63,94,0.18); color: #fecdd3; text-decoration: line-through; border-radius: 0.25rem; padding: 0 0.15rem; }
+.wr-legend ins, .wr-col ins { background: rgba(52,211,153,0.2); color: #a7f3d0; text-decoration: none; border-radius: 0.25rem; padding: 0 0.15rem; }
+.wr-grid { display: grid; grid-template-columns: 1fr; gap: 0.7rem; }
+@media (min-width: 820px) { .wr-grid { grid-template-columns: 1fr 1fr; } }
+.wr-col { background: #0f172a; border: 1px solid rgba(148,163,184,0.25); border-radius: 0.9rem; padding: 0.8rem 0.9rem; }
+.wr-col.wr-new { border-color: rgba(52,211,153,0.45); }
+.wr-col h4 { margin: 0 0 0.4rem; font-size: 0.72rem; letter-spacing: 0.07em; text-transform: uppercase; color: #94a3b8; }
+.wr-col p { margin: 0; font-size: 0.92rem; line-height: 1.7; color: #e2e8f0; }
+.wr-h { margin: 1rem 0 0.4rem; font-size: 0.85rem; color: #f1f5f9; }
+.wr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+.wr-list li { background: #0f172a; border: 1px solid rgba(148,163,184,0.2); border-radius: 0.7rem; padding: 0.55rem 0.7rem; font-size: 0.86rem; line-height: 1.45; color: #e2e8f0; }
+.wr-list li s { color: #fda4af; }
+.wr-list li b { color: #6ee7b7; }
+.wr-list li i { color: #94a3b8; font-size: 0.7rem; margin: 0 0.2rem; }
+.wr-list li span { display: block; color: #94a3b8; font-size: 0.78rem; margin-top: 0.15rem; }
+.wr-note { margin: 0.8rem 0 0; font-size: 0.72rem; color: #94a3b8; }
