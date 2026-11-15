@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115f">
+    <link rel="stylesheet" href="style.css?v=20261115g">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -435,6 +435,8 @@
 
                     <div id="writing-work" class="sx-work hide">
                     <textarea id="writing-area" class="sx-area" placeholder="Type your answer here. Plan first: introduction, 2-3 body paragraphs, conclusion." spellcheck="false"></textarea>
+                    <label class="sx-btn sx-btn-ghost sx-photo"><i class="fa-solid fa-camera" style="color:#38bdf8"></i>Wrote on paper? Photo of my handwriting<input type="file" id="hw-upload-single" accept="image/*" multiple class="hide"></label>
+                    <p id="hw-note-single" class="sx-photo-note hide"></p>
 
                     <button type="button" id="btn-ai-grade-essay" class="sx-btn sx-btn-main"><i class="fa-solid fa-wand-magic-sparkles"></i>Mark my writing &amp; save score</button>
                     <div class="sx-row">
@@ -464,6 +466,8 @@
                             </div>
                             <div id="wf-prompt" class="sx-paper"></div>
                             <textarea id="wf-area" class="sx-area" placeholder="Type your answer here." spellcheck="false"></textarea>
+                            <label class="sx-btn sx-btn-ghost sx-photo"><i class="fa-solid fa-camera" style="color:#38bdf8"></i>Wrote on paper? Photo of my handwriting<input type="file" id="hw-upload-full" accept="image/*" multiple class="hide"></label>
+                            <p id="hw-note-full" class="sx-photo-note hide"></p>
                             <button type="button" id="wf-submit" class="sx-btn sx-btn-main"><i class="fa-solid fa-paper-plane"></i>Submit both tasks for marking</button>
                             <p class="sx-note">Your answers are kept on this phone while you write, so a refresh will not lose them.</p>
                         </div>
@@ -2843,6 +2847,38 @@ After the answer add "Why this is Band 8" with 4 short bullet points (structure,
             renderWritingTest(activeWritingTest);
             showResultBox(document.getElementById('writing-feedback-box'));
             showToast(`✓ Marked & saved: Band ${band.toFixed(1)} (AI estimate)`, "success");
+        });
+
+        // --- Handwriting: a photo of a paper answer is read into the box so the student can check the words, then marked as usual ---
+        const HW_SYS = "You are an exact transcription tool for handwritten English exam answers. Copy every word exactly as written, including spelling and grammar mistakes: never correct, improve or finish anything. Keep the pages in order and separate paragraphs with a blank line. Write [?] in place of any word you cannot read. Ignore crossed-out words. Output only the transcription, with no commentary. If the photo has no readable English writing, output exactly NO_TEXT.";
+        async function readHandwriting(files, area, noteId) {
+            const note = document.getElementById(noteId);
+            const say = (html, cls = '') => { if (!note) return; note.className = 'sx-photo-note ' + cls; note.innerHTML = html; };
+            const list = [...files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name || ''));
+            if (!list.length) { say('That is not an image. Choose a JPG or PNG photo.', 'bad'); return; }
+            if (!area) return;
+            if (aiBusyGuard()) return;
+            const pics = [];
+            for (const f of list.slice(0, 3)) {
+                try {
+                    let u = await imageFileToDataURL(f, 2000, 0.85);
+                    if (u.length > 3500000) u = await imageFileToDataURL(f, 1400, 0.75);
+                    pics.push(u);
+                } catch (err) { /* skip a photo we cannot decode */ }
+            }
+            if (!pics.length) { say("Couldn't read that photo. Try a JPG or PNG.", 'bad'); return; }
+            say('<i class="fa-solid fa-spinner fa-spin"></i> Reading your handwriting' + (pics.length > 1 ? ' (' + pics.length + ' pages)' : '') + '...', 'busy');
+            const raw = await askIELTSVision('Transcribe the handwritten answer in ' + (pics.length > 1 ? 'these ' + pics.length + ' photos (they are consecutive pages)' : 'this photo') + '.', pics, HW_SYS, { maxTokens: 2200, budgetMs: 80000 });
+            const txt = (raw || '').replace(/^```[a-z]*\n?|```$/g, '').trim();
+            if (!raw) { say('⚠ ' + escapeHTML(aiProblemText()), 'bad'); return; }
+            if (/^NO_TEXT\b/.test(txt) || txt.length < 8) { say('I could not find any writing in that photo. Use good light, hold the phone flat above the page and keep the whole page in the frame.', 'bad'); return; }
+            area.value = area.value.trim() ? area.value.trim() + '\n\n' + txt : txt;
+            area.dispatchEvent(new Event('input', { bubbles: true }));
+            const unclear = (txt.match(/\[\?\]/g) || []).length;
+            say('✓ Read ' + txt.split(/\s+/).length + ' words. <b>Check it against your paper</b> and fix any wrong word' + (unclear ? ' (' + unclear + ' unclear word' + (unclear > 1 ? 's are' : ' is') + ' marked [?])' : '') + ', then mark it. The mark uses exactly the words in the box.', 'ok');
+        }
+        [['hw-upload-single', () => writingArea, 'hw-note-single'], ['hw-upload-full', () => wfEl('wf-area'), 'hw-note-full']].forEach(([id, area, note]) => {
+            document.getElementById(id)?.addEventListener('change', async (e) => { const f = [...(e.target.files || [])]; e.target.value = ''; await readHandwriting(f, area(), note); });
         });
 
         // --- SPEAKING ARENA: full IELTS Speaking test (Part 1 interview, Part 2 cue card, Part 3 discussion) ---

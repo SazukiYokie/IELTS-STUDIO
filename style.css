@@ -534,3 +534,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .mt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
 .mt-grid .wf-part { padding: 0.55rem 0.2rem; } .mt-grid .wf-part b { font-size: 1.4rem; }
 @media (max-width: 380px) { .mt-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ---- Photo of handwriting ---- */
+.sx-photo { width: 100%; cursor: pointer; }
+.sx-photo-note { margin: 0.1rem 0 0.2rem; padding: 0.6rem 0.8rem; border-radius: 0.7rem; font-size: 0.8rem; line-height: 1.45; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: #bae6fd; }
+.sx-photo-note.ok { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.35); color: #a7f3d0; }
+.sx-photo-note.bad { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.4); color: #fde68a; }
