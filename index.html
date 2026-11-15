@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261114c">
+    <link rel="stylesheet" href="style.css?v=20261115a">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -124,6 +124,7 @@
                     <button type="button" data-target="vocab" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-book-bookmark text-teal-400 w-5"></i>Vocabulary</button>
                     <button type="button" data-target="grammar" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-spell-check text-violet-400 w-5"></i>Grammar</button>
                     <button type="button" data-target="mistakes" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-triangle-exclamation text-rose-400 w-5"></i>Mistake Notebook<span id="mk-badge" class="mk-badge hide">0</span></button>
+                    <button type="button" data-target="report" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-file-lines text-sky-400 w-5"></i>Progress Report</button>
                 </nav>
             </div>
             <div class="p-2.5 border-t border-slate-700/50 space-y-1 flex-shrink-0">
@@ -205,6 +206,8 @@
                     <div class="db-quick">
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=vocab]').click()"><span class="db-ic" style="background:rgba(20,184,166,.2);color:#2dd4bf"><i class="fa-solid fa-book-bookmark"></i></span><span>Vocabulary<small>New words and quizzes</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=grammar]').click()"><span class="db-ic" style="background:rgba(139,92,246,.2);color:#a78bfa"><i class="fa-solid fa-spell-check"></i></span><span>Grammar<small>Short drills</small></span></button>
+                        <button type="button" class="db-q" onclick="document.querySelector('[data-target=mistakes]').click()"><span class="db-ic" style="background:rgba(244,63,94,.2);color:#fb7185"><i class="fa-solid fa-triangle-exclamation"></i></span><span>Mistake Notebook<small>Retry what you missed</small></span></button>
+                        <button type="button" class="db-q" onclick="document.querySelector('[data-target=report]').click()"><span class="db-ic" style="background:rgba(56,189,248,.2);color:#38bdf8"><i class="fa-solid fa-file-lines"></i></span><span>Progress Report<small>Print or save as PDF</small></span></button>
                     </div>
 
                     <div class="db-word">
@@ -566,6 +569,14 @@
                     <div id="mk-actions" class="sx-row"></div>
                     <div id="mk-stage" class="qz-stage"></div>
                     <div id="mk-list" class="mk-list"></div>
+                  </div>
+                </div>
+
+                <div id="view-report" class="view-section hide">
+                  <div class="sx sx-r">
+                    <div class="sx-head rp-noprint"><div class="sx-head-ic"><i class="fa-solid fa-file-lines"></i></div><div><h2>Progress Report</h2><p>Your bands, trends and what to practise next</p></div>
+                        <button type="button" id="rp-print" class="sx-btn sx-btn-main"><i class="fa-solid fa-print"></i>Print / PDF</button></div>
+                    <div id="rp-sheet" class="rp-sheet"></div>
                   </div>
                 </div>
 
@@ -1165,7 +1176,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             html('writing-prompt-box', '<div class="sx-empty"><b>Pick a task to begin</b><span>You get an exam-style question, a timer and AI marking on the 4 official IELTS criteria.</span></div>');
             document.querySelectorAll('.sx-pick').forEach(b => b.classList.remove('on')); document.querySelectorAll('#view-writing .sx-meter i').forEach(m => { m.style.width = '0'; }); document.querySelectorAll('#view-writing .sx-count').forEach(c => c.classList.remove('ok'));
             html('speaking-cue-card', '<div class="sx-empty"><b>Start a full Speaking test</b><span>Press <em>New test</em> for a Part 1 interview, a Part 2 cue card and Part 3 discussion questions.</span></div>'); hide('speaking-part-tabs');
-            html('speaking-sample-box', ''); try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
+            html('speaking-sample-box', ''); try { html('rp-sheet', ''); } catch (e) {} try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
             html('writing-feedback-box', ''); hide('writing-feedback-box');
             html('listening-transcript-box', ''); hide('listening-transcript-box');
             txt('listening-score-box', ''); txt('reading-score-box', '');
@@ -3648,6 +3659,64 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             }
         });
         document.querySelectorAll('[data-target="mistakes"]').forEach(b => b.addEventListener('click', () => { loadMastered().then(renderMistakes); renderMistakes(); }));
+
+        // ===== Progress Report: bands per skill, overall band, trend, focus areas (printable / save as PDF) =====
+        const RP_ADVICE = {
+            listening: 'Do one full section every two days. Read the questions before the audio starts, and write numbers and spellings carefully.',
+            reading: 'Do one timed passage a day. Skim first, then find the answer. Practise True / False / Not Given, the hardest question type.',
+            writing: 'Write a Task 2 essay every two days with a 5-minute plan. For Task 1, always write an overview of the main trends.',
+            speaking: 'Record a 2-minute Part 2 answer each day. Give a reason and an example in every answer, and keep talking without long pauses.'
+        };
+        const rpHalf = (x) => Math.round(x * 2) / 2;
+        function renderReport() {
+            const sheet = document.getElementById('rp-sheet'); if (!sheet) return;
+            const prof = currentProfile || {};
+            const name = escapeHTML(prof.displayName || auth.currentUser?.displayName || 'Student');
+            const target = parseFloat(prof.targetBand) || null;
+            const today = new Date();
+            const stat = SKILLS.map(sk => {
+                const list = userResults.filter(r => r.module === sk.k && typeof r.band === 'number').sort((a, b) => (a.ts || 0) - (b.ts || 0));
+                const bands = list.map(r => r.band), n = bands.length;
+                const recent = bands.slice(-3), before = bands.slice(-6, -3);
+                const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+                return { ...sk, n, latest: n ? bands[n - 1] : null, best: n ? Math.max(...bands) : null, recentAvg: n ? avg(recent) : null, trend: n >= 2 ? (before.length ? avg(recent) - avg(before) : bands[n - 1] - bands[0]) : null };
+            });
+            const have = stat.filter(x => x.n > 0);
+            const overall = have.length ? rpHalf(have.reduce((a, x) => a + x.recentAvg, 0) / have.length) : null;
+            const arrow = (t) => t == null ? '<span class="rp-muted">–</span>' : t > 0.05 ? `<span class="rp-up">▲ ${t.toFixed(1)}</span>` : t < -0.05 ? `<span class="rp-down">▼ ${Math.abs(t).toFixed(1)}</span>` : '<span class="rp-muted">● steady</span>';
+            const gap = (x) => (target && x.recentAvg != null) ? (x.recentAvg >= target ? '<span class="rp-up">reached</span>' : `${(target - x.recentAvg).toFixed(1)} to go`) : '<span class="rp-muted">–</span>';
+            const weakest = have.length > 1 ? [...have].sort((a, b) => a.recentAvg - b.recentAvg)[0] : null;
+            const untouched = stat.filter(x => x.n === 0);
+            const mistakes = (typeof collectMistakes === 'function' ? collectMistakes() : []).filter(m => !mkMastered[m.key]);
+            const byType = {}; mistakes.forEach(m => { byType[m.type] = (byType[m.type] || 0) + 1; });
+            const topTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            const days = prof.examDate ? Math.ceil((new Date(prof.examDate + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000) : null;
+            const steps = [];
+            if (!have.length) steps.push('Take your first practice test in any skill. This report fills in as you practise.');
+            if (untouched.length && have.length) steps.push(`Try ${untouched.map(x => x.label).join(' and ')}: you have no results there yet, and the real exam tests all four skills.`);
+            if (weakest) steps.push(`Focus on ${weakest.label} (average ${weakest.recentAvg.toFixed(1)}). ${RP_ADVICE[weakest.k]}`);
+            if (topTypes.length) steps.push(`Revisit your Mistake Notebook, especially ${topTypes.map(([t, c]) => `${MK_TYPES[t] || t} (${c})`).join(', ')}.`);
+            if (target && overall != null && overall < target) steps.push(`Your target is Band ${target.toFixed(1)}. You are ${(target - overall).toFixed(1)} band${target - overall > 1 ? 's' : ''} away, so keep a steady daily routine.`);
+            const recentRows = [...userResults].filter(r => typeof r.band === 'number').sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 8);
+            const label = (k) => (SKILLS.find(x => x.k === k) || { label: k }).label;
+            sheet.innerHTML = `
+                <div class="rp-top"><div><h1>IELTS Progress Report</h1><p>${name} &middot; ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <p class="rp-muted">${target ? `Target band ${target.toFixed(1)}` : ''}${days != null && days >= 0 ? ` &middot; exam in ${days} day${days === 1 ? '' : 's'}` : ''}</p></div>
+                    <div class="rp-overall"><b>${overall != null ? overall.toFixed(1) : '–'}</b><span>Overall${have.length && have.length < 4 ? `<br>(${have.length} of 4 skills)` : ''}</span></div></div>
+                <h2>Your four skills</h2>
+                <table class="rp-table"><thead><tr><th>Skill</th><th>Tests</th><th>Latest</th><th>Average</th><th>Best</th><th>Trend</th><th>To target</th></tr></thead><tbody>
+                ${stat.map(x => `<tr><td><span class="rp-dot" style="background:${x.color}"></span>${x.label}</td><td>${x.n}</td><td>${x.latest != null ? x.latest.toFixed(1) : '–'}</td><td><b>${x.recentAvg != null ? x.recentAvg.toFixed(1) : '–'}</b></td><td>${x.best != null ? x.best.toFixed(1) : '–'}</td><td>${arrow(x.trend)}</td><td>${gap(x)}</td></tr>
+                <tr class="rp-barrow"><td colspan="7"><div class="rp-bar"><i style="width:${x.recentAvg != null ? Math.round(x.recentAvg / 9 * 100) : 0}%;background:${x.color}"></i>${target ? `<u style="left:${Math.round(target / 9 * 100)}%"></u>` : ''}</div></td></tr>`).join('')}
+                </tbody></table>
+                <p class="rp-note">Average = your last 3 results in each skill. Overall = the average of your skills, rounded to the nearest 0.5, as in the real IELTS. The line on each bar is your target.</p>
+                <h2>What to do next</h2>
+                <ol class="rp-steps">${steps.length ? steps.map(t => `<li>${escapeHTML(t)}</li>`).join('') : '<li>Keep practising. You are on track.</li>'}</ol>
+                <h2>Recent results</h2>
+                ${recentRows.length ? `<table class="rp-table"><thead><tr><th>Date</th><th>Skill</th><th>Test</th><th>Band</th></tr></thead><tbody>${recentRows.map(r => `<tr><td>${escapeHTML(r.dateStr || '')}</td><td>${label(r.module)}</td><td>${escapeHTML(r.title || '')}</td><td><b>${r.band.toFixed(1)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="rp-muted">No results yet.</p>'}
+                <p class="rp-foot">Bands are AI estimates from practice tests on IELTS Studio KH. They are a guide, not an official IELTS result.</p>`;
+        }
+        document.querySelectorAll('[data-target="report"]').forEach(b => b.addEventListener('click', renderReport));
+        document.getElementById('rp-print')?.addEventListener('click', () => { renderReport(); window.print(); });
 
         document.querySelectorAll('[data-target="vocab"]').forEach(b => b.addEventListener('click', loadVocabBank));
 
