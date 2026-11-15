@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115j">
+    <link rel="stylesheet" href="style.css?v=20261115k">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -1219,7 +1219,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             userSavedTests = []; userResults = [];
             activeWritingTest = null; activeSpeakingTest = null;
             activeHistoryFilter = "all";
-            stopListening();
+            stopListening(); try { lpStop(); } catch (e) {}
             try { dictActive = false; dictRec?.stop?.(); } catch (e) {}
             try { stopRecording(); recStream?.getTracks().forEach(t => t.stop()); } catch (e) {}
             closeExam(true);
@@ -1845,7 +1845,8 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
                 return `Write ONE section of a Cambridge IELTS Listening test.
 ${slot.sec.label}. Content: ${slot.sec.brief}
 Theme: ${topic}.
-Script: ${fmt}. 450 to 550 words of natural spoken English with realistic distractors (details that are mentioned and then corrected or rejected). Completely original.
+Script: ${fmt}. 420 to 500 words of natural spoken English with realistic distractors (details that are mentioned and then corrected or rejected). Completely original.
+Make it easy to follow by ear: short sentences (mostly 8 to 18 words), one idea at a time, clear signpost words (first, then, however, by the way), and say each key detail clearly: spell unusual names letter by letter with hyphens (for example "That's S-M-I-T-H"), give phone numbers and dates in separate small groups, and let the other speaker repeat or confirm important details. Avoid long lists in one sentence.
 Questions (exactly this many of each type): ${parts}. Put the "mcq" questions first, then the "gap" questions; inside each type follow the order of the script.
 - "gap": note, form or sentence completion. "q" is a short line containing ________ ; "ans" is 1-3 words or a number copied EXACTLY as said in the script (write numbers as digits); optional "alt" array of other accepted answers.
 - "mcq": "q" is the question stem; "options" is exactly 3 plain strings (no letters); "ans" is A, B or C.
@@ -1975,7 +1976,7 @@ Return ONLY valid JSON in this shape:
                     <div><div class="ex-hero-eyebrow">IELTS ${L ? '' : 'Academic '}${L ? 'Listening' : 'Reading'}</div><div class="ex-hero-t">${full ? 'Full practice test' : 'Practice ' + (L ? 'section' : 'passage')}</div></div></div>
                 <div class="ex-stats"><div class="ex-stat"><b>${slots.length}</b><span>${unit}</span></div><div class="ex-stat"><b>${nQ}</b><span>Questions</span></div><div class="ex-stat"><b>${mins}</b><span>Minutes</span></div></div>
                 <ul class="ex-points">${points.map(([ic, t]) => `<li><i class="fa-solid ${ic}"></i><span>${escapeHTML(t)}</span></li>`).join('')}</ul>
-                ${L ? `<label class="ex-toggle"><input type="checkbox" id="ex-strict" ${full ? 'checked' : ''}><span class="trk"></span><span><span class="tt">Real exam conditions</span><br><span class="ts">Each recording plays one time only.</span></span></label>` : ''}
+                ${L ? `<label class="ex-toggle"><input type="checkbox" id="ex-strict"><span class="trk"></span><span><span class="tt">Real exam conditions</span><br><span class="ts">20 seconds to read, then it plays once: no pause, no replay. Leave it off while you practise.</span></span></label>` : ''}
                 <p class="ex-prep"><i class="fa-solid fa-wand-magic-sparkles"></i> Written live by AI, so it is new every time. Preparing takes about ${full ? 'a minute' : '20 seconds'}. Your timer starts only when everything is ready.</p>
                 ${errMsg ? `<div class="ex-error"><b>Not ready yet.</b> ${escapeHTML(errMsg)}${have ? `<br>The first ${have} part${have > 1 ? 's are' : ' is'} already prepared, so nothing is lost.` : ''}</div>` : ''}
                 <button type="button" id="btn-exam-start" class="ex-btn ex-btn-green ex-btn-big">${btn}</button>
@@ -2003,7 +2004,7 @@ Return ONLY valid JSON in this shape:
             </div></div>`);
         }
 
-        function examQuestionHTML(q, g, val, review, nParas) {
+        function examQuestionHTML(q, g, val, review, nParas, hear) {
             const dis = review ? 'disabled' : '';
             const radio = (v, label) => `<label class="ex-opt"><input type="radio" name="exq-r-${g}" data-g="${g}" value="${escapeHTML(v)}" ${val === v ? 'checked' : ''} ${dis}><span>${label}</span></label>`;
             let stem = escapeHTML(q.q), input = '';
@@ -2022,7 +2023,7 @@ Return ONLY valid JSON in this shape:
                 const ok = examIsCorrect(q, val);
                 cls = ok ? 'ex-ok' : 'ex-bad';
                 const shown = (val == null || String(val).trim() === '') ? '<em>no answer</em>' : escapeHTML(val);
-                fb = `<div class="ex-fb">${ok ? `<b class="ex-green">&#10003; Correct</b>` : `<b class="ex-red">&#10007; Your answer: ${shown}</b> &middot; <b class="ex-green">Correct: ${escapeHTML(q.ans)}</b>`}${q.exp ? `<p>${escapeHTML(q.exp)}</p>` : ''}</div>`;
+                fb = `<div class="ex-fb">${ok ? `<b class="ex-green">&#10003; Correct</b>` : `<b class="ex-red">&#10007; Your answer: ${shown}</b> &middot; <b class="ex-green">Correct: ${escapeHTML(q.ans)}</b>`}${q.exp ? `<p>${escapeHTML(q.exp)}</p>` : ''}${hear ? `<div class="ex-hear"><button type="button" class="ex-btn ex-btn-light" data-lp-hear="${hear.i}"><i class="fa-solid fa-volume-high"></i> Hear it</button><span>&ldquo;${escapeHTML(hear.text)}&rdquo;</span></div>` : ''}</div>`;
             }
             return `<div class="ex-q ${cls}" id="exq-${g}"><div class="ex-qnum">${g + 1}</div><div class="ex-qbody"><div class="ex-stem">${stem}</div>${input}${fb}</div></div>`;
         }
@@ -2062,16 +2063,12 @@ Return ONLY valid JSON in this shape:
         }
 
         function examAudioHTML(p) {
-            const m = exam, strict = m.strict, done = !!m.played[m.tab];
+            const m = exam, strict = m.strict;
             return `<div class="ex-audio">
                 <div class="ex-eyebrow">${escapeHTML(m.cfg.slots[m.tab]?.sec?.label || `Section ${m.tab + 1}`)}</div>
                 <h3 class="ex-h3">${escapeHTML(p.title)}</h3>
-                <p class="ex-muted">Read the questions first, then press Play and answer while you listen. ${strict ? 'In exam conditions the recording plays only once.' : 'You may replay the recording in practice mode.'}</p>
-                <div class="ex-row">
-                    <button type="button" id="ex-play" class="ex-btn ex-btn-green" ${strict && done ? 'disabled' : ''}>${strict && done ? 'Played' : '&#9654; Play recording'}</button>
-                    ${strict ? '' : `<button type="button" id="ex-stop" class="ex-btn ex-btn-light">&#9632; Stop</button><select id="ex-speed" class="ex-select"><option value="0.85">0.85x</option><option value="0.95" selected>1.0x</option><option value="1.1">1.1x</option></select>`}
-                </div>
-                <div id="ex-audio-status" class="ex-muted">${done ? 'You have started this recording.' : ''}</div>
+                <p class="ex-muted">Read the questions first (tap <b>Questions</b>). The player at the bottom stays on screen while you answer. ${strict ? 'Real exam conditions: you get 20 seconds to look at the questions, then the recording plays once with no pause or replay.' : 'Practice mode: pause, go back one sentence, slow it down, or turn on subtitles (CC).'}</p>
+                <ul class="ex-list"><li>Underline the key words in each question before you listen.</li><li>The answers come in the same order as the questions.</li><li>Listen for corrections: speakers often change their mind.</li><li>Write numbers as digits and check your spelling.</li></ul>
             </div>`;
         }
 
@@ -2093,20 +2090,24 @@ Return ONLY valid JSON in this shape:
             if (L) textPane = review ? `<div class="ex-eyebrow">Recording script</div><h3 class="ex-h3">${escapeHTML(p.title)}</h3>${scriptReviewHTML(p.script || '')}` : examAudioHTML(p);
             else textPane = `<h3 class="ex-h3">${escapeHTML(p.title)}</h3>` + (p.paragraphs || []).map((t, i) => `<p class="ex-p"><b class="ex-para">${String.fromCharCode(65 + i)}</b>${escapeHTML(t)}</p>`).join('');
             let qHTML = '', last = '';
+            const reviewSegs = (L && review) ? lpSegments(p.script || '') : [];
             p.questions.forEach((q, k) => {
                 if (q.type !== last) {
                     last = q.type;
                     const same = p.questions.filter(x => x.type === q.type).length;
                     qHTML += `<div class="ex-ghead"><div class="ex-eyebrow">Questions ${off + k + 1}&ndash;${off + k + same}</div><p class="ex-muted">${(EX_INSTR[m.kind] || EX_INSTR.reading)[q.type] || ''}</p></div>`;
                 }
-                qHTML += examQuestionHTML(q, off + k, m.answers[off + k], review, (p.paragraphs || []).length);
+                const hi = reviewSegs.length ? lpBestSeg(reviewSegs, q) : -1;
+                qHTML += examQuestionHTML(q, off + k, m.answers[off + k], review, (p.paragraphs || []).length, hi >= 0 ? { i: hi, text: reviewSegs[hi].text } : null);
             });
             exEl('exam-title').textContent = (review ? 'Review: ' : '') + (m.mode === 'full' ? `Full ${L ? 'Listening' : 'Reading'} Test` : `${L ? 'Listening' : 'Reading'} Practice`);
             examBody(`${summary}
                 <div id="ex-tabs" class="ex-tabs ${m.parts.length < 2 ? 'hide' : ''}">${examTabsHTML()}</div>
                 <div class="ex-switch"><button type="button" data-ex-pane="text" class="ex-tab ${m.pane !== 'q' ? 'on' : ''}">${L ? (review ? 'Script' : 'Audio') : 'Passage'}</button><button type="button" data-ex-pane="q" class="ex-tab ${m.pane === 'q' ? 'on' : ''}">Questions</button></div>
                 <div class="ex-main"><div class="ex-pane ex-pane-text">${textPane}</div><div class="ex-pane ex-pane-q">${qHTML}</div></div>
+                ${L ? '<div id="ex-player" class="ex-player"></div>' : ''}
                 <div id="ex-nav" class="ex-nav">${examNavHTML()}</div>`);
+            if (L) lpAttach(p);
         }
 
         function openExam(kind, mode, idx = 0) {
@@ -2158,7 +2159,7 @@ Return ONLY valid JSON in this shape:
             if (m && !force && m.phase === 'exam' && !confirm("Leave the test? Your answers will not be saved.")) return false;
             if (m) { m.cancelled = true; clearInterval(m.timer); }
             exam = null;
-            stopListening();
+            lpStop();
             exEl('exam-overlay')?.classList.add('hide');
             examChrome('closed');
             const body = exEl('exam-body'); if (body) body.innerHTML = '';
@@ -2198,7 +2199,7 @@ Return ONLY valid JSON in this shape:
                 m.parts.push(p);
             }
             m.phase = 'exam';
-            m.tab = 0; m.pane = 'text';
+            m.tab = 0; m.pane = m.kind === 'listening' ? 'q' : 'text';
             m.endAt = Date.now() + m.seconds * 1000;
             examChrome('exam');
             renderExam(false);
@@ -2212,7 +2213,7 @@ Return ONLY valid JSON in this shape:
             const answered = Object.values(m.answers).filter(v => String(v ?? '').trim()).length;
             if (!auto && answered < total && !confirm(`You have answered ${answered} of ${total} questions. Submit now?`)) return;
             clearInterval(m.timer);
-            stopListening();
+            lpStop();
             m.phase = 'result';
             examChrome('result');
             const r = examCompute(m.parts, m.answers);
@@ -2234,28 +2235,16 @@ Return ONLY valid JSON in this shape:
             }
         }
 
-        function examPlay() {
-            const m = exam;
-            if (!m || m.phase !== 'exam' || m.kind !== 'listening') return;
-            if (m.strict && m.played[m.tab]) return showToast("In exam conditions each recording plays once.", "info");
-            const p = m.parts[m.tab];
-            m.played[m.tab] = true;
-            const st = exEl('ex-audio-status');
-            if (st) st.textContent = 'Playing... answer as you listen.';
-            const btn = exEl('ex-play');
-            if (btn && m.strict) { btn.disabled = true; btn.textContent = 'Playing...'; }
-            const tabAtStart = m.tab;
-            playListening(p.script, parseFloat(exEl('ex-speed')?.value || "0.95"), () => {
-                if (exam === m && m.tab === tabAtStart) { const s = exEl('ex-audio-status'); if (s) s.textContent = 'Recording finished.'; const b = exEl('ex-play'); if (b && m.strict) b.textContent = 'Played'; }
-            });
-        }
-
         // one set of listeners for the whole exam screen
         exEl('btn-exam-close')?.addEventListener('click', () => closeExam(false));
         exEl('btn-exam-submit')?.addEventListener('click', () => submitExam(false));
         exEl('exam-body')?.addEventListener('click', (e) => {
             const t = e.target;
+            const lpb = t.closest('[data-lp]'); if (lpb) { lpClick(lpb); return; }
+            const hearb = t.closest('[data-lp-hear]');
+            if (hearb) { unlockHdAudio(); const hi = Number(hearb.dataset.lpHear), nx = LP.segs[hi + 1]; lpPlay(hi, nx && nx.gap < 900 ? 2 : 1); return; }
             const tab = t.closest('[data-ex-tab]');
+            if (tab && exam && exam.strict && exam.phase === 'exam' && (LP.state === 'playing' || LP.state === 'preview')) { showToast("Wait until the recording has finished.", "info"); return; }
             if (tab && exam && (exam.phase === 'exam' || exam.phase === 'result')) { exam.tab = Number(tab.dataset.exTab) || 0; renderExam(exam.phase === 'result'); return; }
             const pane = t.closest('[data-ex-pane]');
             if (pane && exam) { exam.pane = pane.dataset.exPane; exEl('exam-overlay').dataset.pane = exam.pane; exEl('exam-body').querySelectorAll('.ex-switch .ex-tab').forEach(b => b.classList.toggle('on', b.dataset.exPane === exam.pane)); return; }
@@ -2274,8 +2263,12 @@ Return ONLY valid JSON in this shape:
             if (t.closest('#btn-exam-start')) startExam();
             else if (t.closest('#btn-exam-cancel') || t.closest('#ex-done')) closeExam(true);
             else if (t.closest('#ex-again')) { const k = exam.kind, md = exam.mode, id = exam.cfg?.slots?.[0] ? exam.cfg.slots[0].n - 1 : 0; openExam(k, md, md === 'full' ? 0 : Math.max(0, Math.min(id, 3))); }
-            else if (t.closest('#ex-play')) examPlay();
-            else if (t.closest('#ex-stop')) { stopListening(); const s = exEl('ex-audio-status'); if (s) s.textContent = 'Stopped.'; }
+        });
+        exEl('exam-body')?.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'ep-rate') {
+                LP.rate = parseFloat(e.target.value) || 0.9;
+                try { localStorage.setItem('IELTS_LP_RATE', String(LP.rate)); hdAudio.playbackRate = LP.rate; hdAudio.defaultPlaybackRate = LP.rate; } catch (err) {}
+            }
         });
         exEl('exam-body')?.addEventListener('input', (e) => {
             const el = e.target;
@@ -2385,11 +2378,15 @@ Return ONLY valid JSON in this shape:
         }
         function fetchHD(text, idx) {
             const key = `${ttsModel}|${idx}|${text}`;
-            if (!hdCache.has(key)) hdCache.set(key, (async () => {
-                const r = await fetch("https://api.groq.com/openai/v1/audio/speech", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getBuiltInKey()}` }, body: JSON.stringify({ model: ttsModel, input: text, voice: ttsVoiceFor(idx), response_format: "wav" }) });
-                if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(r.status === 400 && /terms/i.test(t) ? 'terms' : 'tts ' + r.status); }
-                return URL.createObjectURL(await r.blob());
-            })());
+            if (!hdCache.has(key)) {
+                const pr = (async () => {
+                    const r = await fetch("https://api.groq.com/openai/v1/audio/speech", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getBuiltInKey()}` }, body: JSON.stringify({ model: ttsModel, input: text, voice: ttsVoiceFor(idx), response_format: "wav" }) });
+                    if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(r.status === 400 && /terms/i.test(t) ? 'terms' : 'tts ' + r.status); }
+                    return URL.createObjectURL(await r.blob());
+                })();
+                pr.catch(() => hdCache.delete(key));   // a failed sentence can be tried again later
+                hdCache.set(key, pr);
+            }
             return hdCache.get(key);
         }
         // returns 'ok', 'stopped', or the index where the AI voice failed so the phone voice can take over
@@ -2453,6 +2450,246 @@ Return ONLY valid JSON in this shape:
         }
 
 
+
+        // ===== Listening player: one control bar that stays on screen while you answer =====
+        // Why: on a phone the Audio tab and the Questions tab were separate screens, so you could not see the controls while answering,
+        // there was no pause or rewind, the voice ran straight through, and every sentence was fetched while it played.
+        const LP = { part: null, segs: [], i: 0, state: 'idle', rate: 0.9, run: 0, paused: false, pending: null, hdActive: false, ready: 0, subs: false, pre: 0, stopAt: 0, preloadTok: 0 };
+        try { const r = parseFloat(localStorage.getItem('IELTS_LP_RATE')); if ([0.75, 0.9, 1, 1.15].includes(r)) LP.rate = r; LP.subs = localStorage.getItem('IELTS_LP_SUBS') === '1'; } catch (e) {}
+        const lpSleep = (ms) => new Promise(r => setTimeout(r, ms));
+        const lpHDok = () => !!(ttsModel && !hdDead && !hdOff);
+
+        // numbers are easier to hear when read digit by digit: 0412 345 678 -> 0 4 1 2, 3 4 5, 6 7 8
+        function speakable(t) {
+            const digits = (g) => g.split('').join(' ');
+            return String(t).replace(/(?<![\d.,£$€])\d{2,5}(?:[ -]\d{2,5}){1,4}(?![\d.,%])|(?<![\d.,£$€])\d{7,}(?![\d.,%])/g, (m) => {
+                const groups = m.split(/[ -]/);
+                return groups.join('').length >= 7 ? groups.map(digits).join(', ') : m;
+            });
+        }
+        // the recording cut into sentences with a natural pause before each: longer when the speaker changes
+        function lpSegments(script) {
+            const turns = parseScriptTurns(script);
+            const speakers = [...new Set(turns.map(t => t.who))];
+            const segs = [];
+            turns.forEach(t => {
+                const idx = Math.max(0, speakers.indexOf(t.who));
+                speechChunks(t.text, 190).forEach((c, ci) => segs.push({ text: c, say: speakable(c), idx, who: t.name || '', gap: !segs.length ? 600 : ci === 0 ? 900 : 380 }));
+            });
+            return segs;
+        }
+        // which sentence gives the answer to a question (for "Hear it" in the review)
+        function lpBestSeg(segs, q) {
+            const toks = (s) => String(s || '').toLowerCase().match(/[a-z0-9']{3,}/g) || [];
+            const ans = q.type === 'mcq' ? '' : String(q.ans || '').toLowerCase().trim();
+            const want = new Set(toks(q.exp));
+            let best = -1, top = 0;
+            segs.forEach((s, i) => {
+                const st = s.text.toLowerCase(); let sc = 0;
+                if (ans.length >= 2 && st.includes(ans)) sc += 6;
+                toks(st).forEach(w => { if (want.has(w)) sc++; });
+                if (sc > top) { top = sc; best = i; }
+            });
+            return top >= 3 ? best : -1;
+        }
+        function hdMarkDead(e) {
+            hdDead = true;
+            try { if (e && e.message === 'terms') { localStorage.setItem('IELTS_HD_TERMS', String(Date.now())); showToast("The natural AI voice needs a one-time OK in Groq, so the phone voice is used. See Profile → Test AI now.", "info"); } else sessionStorage.setItem('IELTS_HD_DEAD', '1'); } catch (x) {}
+        }
+
+        // fetch every sentence of the recording in the background (3 at a time) so playback never waits for the network
+        async function lpPreload(segs, tok) {
+            if (!lpHDok()) { LP.ready = segs.length; lpUI(); return; }
+            LP.ready = 0; let next = 0;
+            const work = async () => {
+                while (next < segs.length) {
+                    const k = next++;
+                    if (LP.preloadTok !== tok || !lpHDok()) return;
+                    try { await fetchHD(segs[k].say, segs[k].idx); }
+                    catch (e) { if (k === 0 || (e && e.message === 'terms')) hdMarkDead(e); return; }
+                    if (LP.preloadTok !== tok) return;
+                    LP.ready++; lpUI();
+                }
+            };
+            await Promise.all([work(), work(), work()]);
+            if (LP.preloadTok === tok && (LP.ready < segs.length)) { LP.ready = segs.length; lpUI(); }   // some sentences will use the phone voice
+        }
+
+        // a timer that stands still while paused
+        async function lpWait(ms, tok) {
+            let left = ms;
+            while (LP.run === tok) {
+                if (!LP.paused) { if (left <= 0) return; left -= 80; }
+                await lpSleep(80);
+            }
+        }
+        async function lpSpeakPhone(seg, tok) {
+            const synth = window.speechSynthesis;
+            if (!synth) { await lpWait(Math.max(1500, seg.text.length * 55), tok); return; }
+            const list = await englishVoices();
+            const pref = list[0] || null, other = list.find(v => v !== pref) || pref;
+            for (;;) {
+                if (LP.run !== tok) return;
+                if (LP.paused) { await lpSleep(120); continue; }
+                const second = seg.idx % 2 === 1, v = second ? other : pref;
+                await new Promise(res => {
+                    const u = new SpeechSynthesisUtterance(seg.say);
+                    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB';
+                    u.rate = LP.rate; u.pitch = second && other === pref ? 0.8 : 1;
+                    u.onend = () => res(); u.onerror = () => res();
+                    synth.speak(u);
+                });
+                if (LP.run !== tok) return;
+                if (LP.paused) continue;   // paused in the middle: say this sentence again on resume
+                return;
+            }
+        }
+        async function lpSpeak(seg, tok) {
+            if (lpHDok()) {
+                try {
+                    const url = await fetchHD(seg.say, seg.idx);
+                    if (LP.run !== tok) return;
+                    LP.hdActive = true;
+                    await new Promise((res, rej) => {
+                        hdAudio.onended = res; hdAudio.onerror = () => rej(new Error('audio'));
+                        hdAudio.defaultPlaybackRate = LP.rate; hdAudio.src = url; hdAudio.playbackRate = LP.rate;
+                        const go = () => { const pr = hdAudio.play(); if (pr && pr.catch) pr.catch(rej); };
+                        if (LP.paused) LP.pending = go; else go();
+                    });
+                    LP.hdActive = false;
+                    return;
+                } catch (e) {
+                    LP.hdActive = false;
+                    if (LP.run !== tok) return;
+                    if (e && e.message === 'terms') hdMarkDead(e);   // anything else: only this sentence uses the phone voice
+                }
+            }
+            await lpSpeakPhone(seg, tok);
+        }
+        function lpHalt() { try { hdAudio.pause(); } catch (e) {} try { window.speechSynthesis?.cancel(); } catch (e) {} LP.hdActive = false; LP.pending = null; }
+        // play from sentence `from`; count > 0 plays only that many sentences (used by "Hear it")
+        async function lpPlay(from, count = 0) {
+            if (!LP.segs.length) return;
+            const tok = ++LP.run;
+            lpHalt();
+            LP.i = Math.max(0, Math.min(from, LP.segs.length - 1)); LP.paused = false; LP.state = 'playing';
+            LP.stopAt = count ? Math.min(LP.segs.length, LP.i + count) : LP.segs.length;
+            for (; LP.i < LP.stopAt; LP.i++) {
+                lpUI();
+                await lpWait(LP.segs[LP.i].gap / LP.rate, tok);
+                if (LP.run !== tok) return;
+                await lpSpeak(LP.segs[LP.i], tok);
+                if (LP.run !== tok) return;
+            }
+            LP.i = Math.min(LP.i, LP.segs.length - 1);
+            LP.state = LP.stopAt >= LP.segs.length ? 'done' : 'idle';
+            lpUI();
+        }
+        function lpPause() {
+            if (LP.state !== 'playing') return;
+            LP.paused = true; LP.state = 'paused';
+            try { hdAudio.pause(); } catch (e) {} try { window.speechSynthesis?.cancel(); } catch (e) {}
+            lpUI();
+        }
+        function lpResume() {
+            if (LP.state !== 'paused') return;
+            LP.paused = false; LP.state = 'playing';
+            if (LP.pending) { const f = LP.pending; LP.pending = null; f(); }
+            else if (LP.hdActive && hdAudio.paused) { const pr = hdAudio.play(); if (pr && pr.catch) pr.catch(() => {}); }
+            lpUI();
+        }
+        function lpStop() {
+            LP.run++; LP.preloadTok++; LP.paused = false; LP.state = 'idle'; LP.part = null; LP.segs = []; LP.i = 0;
+            lpHalt(); stopListening();
+        }
+        // Real exam: a 20 second look at the questions, then the recording plays once and cannot be paused.
+        async function lpStartStrict() {
+            const m = exam; if (!m || m.played[m.tab]) return;
+            m.played[m.tab] = true;
+            LP.rate = 1;
+            const tok = ++LP.run; LP.state = 'preview';
+            for (let s = 20; s > 0; s--) { LP.pre = s; lpUI(); await lpSleep(1000); if (LP.run !== tok) return; }
+            lpPlay(0);
+        }
+
+        function lpMount() {
+            const el = exEl('ex-player'); if (!el) return;
+            const strict = !!(exam && exam.strict && exam.phase === 'exam');
+            el.className = 'ex-player' + (strict ? ' ep-strict' : '');
+            el.innerHTML = `<div class="ep-bar"><i id="ep-fill"></i></div>
+                <div class="ep-info"><span id="ep-status"></span><span id="ep-count"></span></div>
+                <div id="ep-sub" class="ep-sub hide"></div>
+                <div class="ep-row">
+                    ${strict ? '' : '<button type="button" data-lp="back" class="ep-btn" aria-label="Previous sentence" title="Previous sentence">&#9664; Back</button>'}
+                    <button type="button" data-lp="play" id="ep-play" class="ep-play"></button>
+                    ${strict ? '' : `<button type="button" data-lp="next" class="ep-btn" aria-label="Next sentence" title="Next sentence">Next &#9654;</button>
+                    <select id="ep-rate" class="ep-rate" aria-label="Speed"><option value="0.75">0.75x</option><option value="0.9">0.9x</option><option value="1">1.0x</option><option value="1.15">1.15x</option></select>
+                    <button type="button" data-lp="subs" id="ep-subs" class="ep-btn ep-cc" aria-label="Subtitles" title="Subtitles">CC</button>`}
+                </div>`;
+            const sel = el.querySelector('#ep-rate'); if (sel) sel.value = String(LP.rate);
+        }
+        function lpUI() {
+            const play = exEl('ep-play'); if (!play) return;
+            const m = exam, strict = !!(m && m.strict && m.phase === 'exam'), n = LP.segs.length;
+            const L = LP, done = L.state === 'done';
+            let label = '<i class="fa-solid fa-play"></i> Play recording', dis = false;
+            if (L.state === 'preview') { label = `Starts in ${L.pre}s`; dis = true; }
+            else if (L.state === 'playing') { label = strict ? 'Playing...' : '<i class="fa-solid fa-pause"></i> Pause'; dis = strict; }
+            else if (L.state === 'paused') label = '<i class="fa-solid fa-play"></i> Resume';
+            else if (done) { label = strict ? 'Played' : '<i class="fa-solid fa-rotate-right"></i> Play again'; dis = strict; }
+            else if (strict) label = m && m.played[m.tab] ? 'Played' : '<i class="fa-solid fa-play"></i> Start recording';
+            if (strict && L.state === 'idle' && m && m.played[m.tab]) dis = true;
+            play.innerHTML = label; play.disabled = dis || !n;
+            const frac = !n ? 0 : done ? 1 : (L.i + ((L.state === 'playing' || L.state === 'paused') && hdAudio.duration && L.hdActive ? Math.min(1, hdAudio.currentTime / hdAudio.duration) : 0)) / n;
+            const fill = exEl('ep-fill'); if (fill) fill.style.width = Math.round(frac * 100) + '%';
+            const cnt = exEl('ep-count'); if (cnt) cnt.textContent = n ? `${Math.min(n, L.i + ((L.state === 'idle' || L.state === 'preview') && !L.i ? 0 : 1))} / ${n}` : '';
+            let st = '';
+            if (L.state === 'preview') st = `Read the questions now. The recording plays once.`;
+            else if (L.state === 'playing') st = strict ? 'Listening... answer as you hear it.' : 'Playing...';
+            else if (L.state === 'paused') st = 'Paused';
+            else if (done) st = 'Recording finished.';
+            else if (lpHDok() && L.ready < n) st = `Getting the voice ready... ${L.ready}/${n}`;
+            else st = strict ? 'Ready. You get 20 seconds to look at the questions.' : 'Ready. Press play when you have read the questions.';
+            const stEl = exEl('ep-status'); if (stEl) stEl.textContent = st;
+            ['back', 'next'].forEach(k => { const b = document.querySelector(`#ex-player [data-lp="${k}"]`); if (b) b.disabled = !n; });
+            const cc = exEl('ep-subs'); if (cc) { cc.classList.toggle('on', L.subs); cc.setAttribute('aria-pressed', L.subs ? 'true' : 'false'); }
+            const sub = exEl('ep-sub');
+            if (sub) {
+                const cur = L.segs[L.i], live = (L.state === 'playing' || L.state === 'paused') || (L.state === 'idle' && L.i > 0);
+                const show = L.subs && !strict && cur && live;
+                sub.classList.toggle('hide', !show);
+                if (show) sub.innerHTML = (cur.who ? `<b>${escapeHTML(cur.who)}:</b> ` : '') + escapeHTML(cur.text);
+            }
+        }
+        hdAudio.addEventListener('timeupdate', () => { if (LP.state === 'playing') lpUI(); });
+        async function lpAttach(p) {
+            const same = LP.part === p;
+            if (!same) {
+                lpHalt(); LP.run++; LP.preloadTok++;
+                LP.part = p; LP.segs = lpSegments(p.script || ''); LP.i = 0; LP.state = 'idle'; LP.paused = false; LP.ready = 0;
+                if (exam && exam.strict && exam.phase === 'exam') LP.rate = 1;
+            }
+            lpMount(); lpUI();
+            if (!same) {
+                const tok = LP.preloadTok;
+                await ensureAIModels();
+                if (LP.part !== p || LP.preloadTok !== tok) return;
+                lpPreload(LP.segs, tok);
+            }
+        }
+        function lpClick(btn) {
+            const m = exam; if (!m) return;
+            const strict = m.strict && m.phase === 'exam', act = btn.dataset.lp;
+            unlockHdAudio();   // inside the tap, so phones let the voice play
+            if (act === 'play') {
+                if (strict) { if (LP.state === 'idle') lpStartStrict(); return; }
+                if (LP.state === 'playing') lpPause();
+                else if (LP.state === 'paused') lpResume();
+                else lpPlay(LP.state === 'done' ? 0 : LP.i);
+            } else if (act === 'back') lpPlay(Math.max(0, LP.i - 1));
+            else if (act === 'next') lpPlay(Math.min(LP.segs.length - 1, LP.i + 1));
+            else if (act === 'subs') { LP.subs = !LP.subs; try { localStorage.setItem('IELTS_LP_SUBS', LP.subs ? '1' : '0'); } catch (e) {} lpUI(); }
+        }
 
         // --- WRITING STUDIO: standard IELTS Academic Task 1 (chart) and Task 2 (essay) ---
         const WRITING_T2_BANK = [
