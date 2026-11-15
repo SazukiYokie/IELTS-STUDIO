@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115d">
+    <link rel="stylesheet" href="style.css?v=20261115e">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -641,10 +641,24 @@
         <div class="cm-box"><h3 id="cm-title">Delete?</h3><p id="cm-msg"></p>
             <div class="cm-row"><button type="button" id="cm-cancel" class="sx-btn sx-btn-ghost">Cancel</button><button type="button" id="cm-ok" class="sx-btn sx-btn-danger"><i class="fa-solid fa-trash"></i>Delete</button></div></div>
     </div>
+    <div id="offline-bar" class="offline-bar hide" role="status"><i class="fa-solid fa-wifi"></i> You are offline. Saved tests, notes and reports still open. The AI and new tests need internet.</div>
+
+    <script>
+        // Offline bar + service worker (sw.js): a plain script so it still runs if the main app script can't load
+        (function () {
+            var bar = document.getElementById('offline-bar');
+            function sync() { if (bar) bar.classList.toggle('hide', navigator.onLine !== false); }
+            window.addEventListener('online', sync); window.addEventListener('offline', sync); sync();
+            if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+                window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+            }
+        })();
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, deleteDoc, onSnapshot, collection, query, orderBy, limit, increment } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+        import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, onSnapshot, collection, query, orderBy, limit, increment } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
         import { getBuiltInKey, AI_PREFERRED, AI_MODELS, deadModels, groqModelIds, whisperModels, ttsModel, lastAIError, ensureAIModels, resetAIDiscovery, isAIBusy, aiProblemText, aiRequest, stripThink, groqChat, askIELTSAI, askIELTSVision, parseJSONSafely } from "./ai.js?v=20261115a";
 
         const firebaseConfig = {
@@ -658,7 +672,12 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
+        // Keep a copy of the student's own data on the phone so saved tests, results and notes still open offline.
+        // If the browser can't do that (private mode, old browser) the normal online database is used instead.
+        let db;
+        try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+        catch (e) { db = getFirestore(app); }
+
 
 
         // Escape user-controlled text before putting it into innerHTML (prevents script injection)
