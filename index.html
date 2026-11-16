@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115k">
+    <link rel="stylesheet" href="style.css?v=20261115l">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -376,6 +376,12 @@
                                 <button type="button" data-exam="listening:part:3" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white py-2 rounded-xl">4 · Lecture</button>
                             </div>
                         </div>
+                    </div>
+                    <div id="dict-card" class="dc-card">
+                        <h3><i class="fa-solid fa-keyboard mr-2"></i>Dictation practice</h3>
+                        <p>Listen to one sentence at a time and type exactly what you hear. It trains your ear for small words and spelling, and shows you which words you missed. Capital letters and punctuation are not marked.</p>
+                        <div class="dc-levels"><button type="button" data-dict-level="easy" class="dc-btn">Easy</button><button type="button" data-dict-level="medium" class="dc-btn">Medium</button><button type="button" data-dict-level="hard" class="dc-btn">Hard</button></div>
+                        <div id="dict-stage"></div>
                     </div>
                     <details class="glass-panel rounded-2xl p-3.5 text-xs text-slate-300">
                         <summary class="cursor-pointer font-semibold text-cyan-300">Examiner tips for Listening</summary>
@@ -1200,7 +1206,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             html('writing-prompt-box', '<div class="sx-empty"><b>Pick a task to begin</b><span>You get an exam-style question, a timer and AI marking on the 4 official IELTS criteria.</span></div>');
             document.querySelectorAll('.sx-pick').forEach(b => b.classList.remove('on')); document.querySelectorAll('#view-writing .sx-meter i').forEach(m => { m.style.width = '0'; }); document.querySelectorAll('#view-writing .sx-count').forEach(c => c.classList.remove('ok'));
             html('speaking-cue-card', '<div class="sx-empty"><b>Start a full Speaking test</b><span>Press <em>New test</em> for a Part 1 interview, a Part 2 cue card and Part 3 discussion questions.</span></div>'); hide('speaking-part-tabs');
-            try { endLive(); } catch (e) {} html('speaking-sample-box', ''); try { mock = null; mockViewing = null; html('mt-body', ''); } catch (e) {} try { html('rp-sheet', ''); } catch (e) {} try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
+            try { dict = null; html('dict-stage', ''); } catch (e) {} try { endLive(); } catch (e) {} html('speaking-sample-box', ''); try { mock = null; mockViewing = null; html('mt-body', ''); } catch (e) {} try { html('rp-sheet', ''); } catch (e) {} try { wf = null; stopCountdown('wf-timer'); wfEl('writing-full')?.classList.add('hide'); wfEl('writing-single')?.classList.remove('hide'); wfEl('btn-writing-full')?.classList.remove('on'); } catch (e) {} try { mkMastered = {}; mkLoadedFor = ''; html('mk-list', ''); html('mk-stage', ''); hide('mk-badge'); } catch (e) {} hide('speaking-result'); hide('speaking-work'); hide('writing-work'); hide('writing-bar');
             html('writing-feedback-box', ''); hide('writing-feedback-box'); html('writing-rewrite-box', ''); hide('writing-rewrite-box');
             html('listening-transcript-box', ''); hide('listening-transcript-box');
             txt('listening-score-box', ''); txt('reading-score-box', '');
@@ -3231,6 +3237,100 @@ After the answer add "Why this is Band 8" with 4 short bullet points (structure,
             box.innerHTML = rewriteHTML(essay, r);
         }
         document.getElementById('btn-ai-writing-rewrite')?.addEventListener('click', writingRewrite);
+
+        // ===== Dictation: hear one sentence, type it, see exactly which words you missed =====
+        const DICT_BANK = {
+            easy: ["The library opens at nine o'clock every morning.", "My brother works in a small hospital near the river.", "We usually have lunch together on Saturdays.", "Please bring your passport and two photographs.", "The bus to the airport leaves from platform four.", "She is studying English because she wants to work abroad.", "Could you tell me where the post office is?", "It was raining heavily, so we stayed at home."],
+            medium: ["The accommodation office is open from ten thirty until four fifteen.", "Their flight to Melbourne was delayed by almost two hours.", "You need to register before the twenty-third of September.", "The museum's new exhibition attracted thousands of visitors last month.", "Students can borrow up to six books for three weeks.", "There are several restaurants and a pharmacy on the ground floor.", "The conference will take place in the main lecture theatre.", "Please complete the questionnaire and return it to reception."],
+            hard: ["Researchers have discovered that regular exercise significantly improves concentration and long-term memory.", "Although the proposal was widely criticised, the council decided to proceed with the construction.", "The government has introduced new regulations to reduce carbon emissions from heavy industry.", "Population growth in coastal cities is putting enormous pressure on housing and public transport.", "Many economists argue that automation will fundamentally change the nature of employment.", "The professor recommended that students consult primary sources rather than rely on summaries.", "Rising temperatures are affecting biodiversity, particularly in mountainous and polar regions.", "Environmental organisations have called for stricter controls on the disposal of plastic waste."]
+        };
+        let dict = null;   // { level, source, sentences, i, plays, checked, results }
+        const dictKey = () => 'IELTS_DICT_' + (auth.currentUser?.uid || 'x');
+        const dictEl = (id) => document.getElementById(id);
+        function dictHistory() { try { return JSON.parse(localStorage.getItem(dictKey()) || '[]'); } catch (e) { return []; } }
+        function dictRender() {
+            const box = dictEl('dict-stage'); if (!box) return;
+            if (!dict) { box.innerHTML = ''; return; }
+            if (dict.loading) { box.innerHTML = '<p class="dc-wait"><i class="fa-solid fa-spinner fa-spin"></i> Preparing your sentences...</p>'; return; }
+            const n = dict.sentences.length;
+            if (dict.i >= n) {
+                const accs = dict.results.map(r => r.acc), avg = Math.round(accs.reduce((a, b) => a + b, 0) / Math.max(1, accs.length));
+                const missed = {}; dict.results.forEach(r => r.missed.forEach(w => { missed[w] = (missed[w] || 0) + 1; }));
+                const top = Object.entries(missed).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([w]) => `<span>${escapeHTML(w)}</span>`).join('');
+                const hist = dictHistory().slice(-6).map(h => h.acc + '%').join(' · ');
+                box.innerHTML = `<div class="dc-sum"><div class="dc-acc ${avg >= 85 ? 'ok' : avg >= 60 ? 'mid' : 'bad'}">${avg}%</div>
+                    <h4>${avg >= 85 ? 'Excellent listening' : avg >= 60 ? 'Good, keep going' : 'Keep practising'}</h4>
+                    <p>${dict.results.filter(r => r.acc === 100).length} of ${n} sentences were perfect.</p>
+                    ${top ? `<p class="dc-l">Words to practise</p><div class="dc-chips">${top}</div>` : ''}
+                    ${hist ? `<p class="dc-hist">Your last sessions: ${hist}</p>` : ''}
+                    <div class="dc-row"><button type="button" data-dict-new="${dict.level}" class="dc-btn dc-main">New ${dict.level} set</button><button type="button" data-dict-end class="dc-btn">Close</button></div></div>`;
+                return;
+            }
+            const s = dict.sentences[dict.i], r = dict.checked;
+            let res = '';
+            if (r) {
+                res = `<div class="dc-res"><div class="dc-acc ${r.acc >= 85 ? 'ok' : r.acc >= 60 ? 'mid' : 'bad'}">${r.acc}%</div>
+                    <p class="dc-l">What was said</p><p class="dc-line">${r.leftHTML}</p>
+                    <p class="dc-l">What you typed</p><p class="dc-line">${r.rightHTML || '<em>nothing</em>'}</p>
+                    ${r.acc < 100 ? '<p class="dc-hint">Red = words you missed or spelled differently. Amber = extra or wrong words.</p>' : '<p class="dc-hint">Perfect. Every word and spelling is right.</p>'}
+                    <button type="button" data-dict-next class="dc-btn dc-main">${dict.i + 1 >= n ? 'See my result' : 'Next sentence'}</button></div>`;
+            }
+            box.innerHTML = `<div class="dc-bar"><i style="width:${Math.round(dict.i / n * 100)}%"></i></div>
+                <div class="dc-top"><span>Sentence ${dict.i + 1} of ${n}</span><span>${escapeHTML(dict.level)} · ${dict.source === 'ai' ? 'written by AI' : 'practice bank'}</span></div>
+                <div class="dc-row"><button type="button" data-dict-play="1" class="dc-btn dc-main"><i class="fa-solid fa-volume-high"></i> Play</button><button type="button" data-dict-play="0.7" class="dc-btn"><i class="fa-solid fa-person-walking"></i> Slow</button><span class="dc-plays">${dict.plays ? 'Played ' + dict.plays + '×' : 'Press Play'}</span></div>
+                <textarea id="dict-in" class="dc-in" rows="3" placeholder="Type exactly what you hear, with correct spelling." spellcheck="false" autocomplete="off" autocapitalize="off" ${r ? 'disabled' : ''}>${escapeHTML(r ? r.typed : '')}</textarea>
+                ${r ? res : '<button type="button" data-dict-check class="dc-btn dc-main dc-wide">Check my answer</button>'}`;
+        }
+        async function dictStart(level) {
+            if (!DICT_BANK[level]) return;
+            dict = { level, loading: true, sentences: [], i: 0, plays: 0, checked: null, results: [], source: 'bank' };
+            dictRender();
+            const mine = dict;
+            let list = null;
+            if (!isAIBusy()) {
+                const raw = await askIELTSAI(`Write 6 separate sentences for an IELTS Listening dictation exercise at ${level} level.\nEasy: 8 to 10 words, everyday life. Medium: 12 to 16 words, include a time, a date or a number and common spelling traps (their/there, accommodation, separate). Hard: 16 to 22 words, academic topics with less common vocabulary.\nEvery sentence must be complete and use normal punctuation. Write numbers as words, not digits.\nReturn JSON only: {"sentences":["...","...","...","...","...","..."]}`, "You are an IELTS Listening teacher. Output valid JSON only.", true, { maxTokens: 500, budgetMs: 15000 });
+                const p = parseJSONSafely(raw);
+                const arr = p && Array.isArray(p.sentences) ? p.sentences.map(x => String(x || '').trim()).filter(x => { const w = x.split(/\s+/).length; return w >= 5 && w <= 30 && x.length < 220 && !/\d/.test(x); }) : [];
+                if (arr.length >= 5) list = arr.slice(0, 6);
+            }
+            if (dict !== mine) return;
+            mine.loading = false;
+            mine.source = list ? 'ai' : 'bank';
+            mine.sentences = list || [...DICT_BANK[level]].sort(() => Math.random() - 0.5).slice(0, 6);
+            dictRender();
+        }
+        function dictCheck() {
+            const d = dict; if (!d || d.checked) return;
+            const typed = (dictEl('dict-in')?.value || '').trim();
+            if (!typed) return showToast("Type what you heard first.", "error");
+            const s = d.sentences[d.i];
+            const df = wrDiff(s, typed);
+            let acc = 0, missed = [], leftHTML, rightHTML;
+            if (df) {
+                const ok = df.left.filter(x => !x[1]).length;
+                acc = Math.round(ok / df.left.length * 100);
+                missed = df.left.filter(x => x[1]).map(x => x[0].toLowerCase().replace(/[^a-z0-9']/g, '')).filter(Boolean);
+                leftHTML = wrMark(df.left, 'del'); rightHTML = wrMark(df.right, 'ins');
+            } else { leftHTML = escapeHTML(s); rightHTML = escapeHTML(typed); missed = s.toLowerCase().split(/\s+/).map(w => w.replace(/[^a-z0-9']/g, '')).filter(Boolean); }
+            d.checked = { acc, typed, missed, leftHTML, rightHTML };
+            d.results.push({ sentence: s, acc, missed });
+            dictRender();
+        }
+        function dictFinish() {
+            const accs = dict.results.map(r => r.acc), avg = Math.round(accs.reduce((a, b) => a + b, 0) / Math.max(1, accs.length));
+            try { const h = dictHistory(); h.push({ t: Date.now(), level: dict.level, acc: avg }); localStorage.setItem(dictKey(), JSON.stringify(h.slice(-30))); } catch (e) {}
+        }
+        document.getElementById('dict-card')?.addEventListener('click', (e) => {
+            const t = e.target;
+            const lv = t.closest('[data-dict-level]'); if (lv) { dictStart(lv.dataset.dictLevel); return; }
+            const nw = t.closest('[data-dict-new]'); if (nw) { dictStart(nw.dataset.dictNew); return; }
+            if (t.closest('[data-dict-end]')) { dict = null; dictRender(); return; }
+            const pl = t.closest('[data-dict-play]');
+            if (pl && dict && !dict.loading && dict.sentences[dict.i]) { unlockHdAudio(); dict.plays++; playListening(dict.sentences[dict.i], parseFloat(pl.dataset.dictPlay) || 1); const c = dictEl('dict-stage')?.querySelector('.dc-plays'); if (c) c.textContent = 'Played ' + dict.plays + '×'; return; }
+            if (t.closest('[data-dict-check]')) { dictCheck(); return; }
+            if (t.closest('[data-dict-next]') && dict) { stopListening(); dict.i++; dict.plays = 0; dict.checked = null; if (dict.i >= dict.sentences.length) dictFinish(); dictRender(); return; }
+        });
+        document.getElementById('dict-card')?.addEventListener('keydown', (e) => { if (e.target.id === 'dict-in' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dictCheck(); } });
 
         // --- SPEAKING ARENA: full IELTS Speaking test (Part 1 interview, Part 2 cue card, Part 3 discussion) ---
         const SPEAKING_BANK = [
