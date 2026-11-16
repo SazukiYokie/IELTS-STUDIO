@@ -93,7 +93,7 @@ export function stripThink(t) { return String(t || '').replace(/<think>[\s\S]*?<
 // One chat request to one model. If a model rejects the extra reasoning setting (HTTP 400) it is retried plain.
 export async function groqChat(m, messages, o) {
     const make = (withExtra) => JSON.stringify({
-        model: m.id, messages, temperature: 0.55,
+        model: m.id, messages, temperature: typeof o.temperature === 'number' ? o.temperature : 0.55,
         max_completion_tokens: Math.min(7000, m.reasoning ? o.maxTokens + 1200 : o.maxTokens),
         ...(o.json ? { response_format: { type: "json_object" } } : {}),
         ...(withExtra ? (m.extra || {}) : {})
@@ -129,7 +129,7 @@ async function askIELTSAIInner(userPrompt, systemPrompt, forceJSON, opts) {
         if (deadModels.has(m.id)) continue;
         if (authFailed || left() < 4000) break;
         try {
-            const r = await groqChat(m, messages, { maxTokens, json: forceJSON, ms: () => Math.min(opts.requestMs || 22000, left()) });
+            const r = await groqChat(m, messages, { maxTokens, json: forceJSON, temperature: opts.temperature, ms: () => Math.min(opts.requestMs || 22000, left()) });
             if (r.ok) {
                 const choice = r.body?.choices?.[0];
                 const txt = stripThink(choice?.message?.content);

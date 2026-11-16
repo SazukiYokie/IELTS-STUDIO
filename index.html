@@ -35,7 +35,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115l">
+    <link rel="stylesheet" href="style.css?v=20261115m">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -703,7 +703,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
         import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, onSnapshot, collection, query, orderBy, limit, increment } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-        import { getBuiltInKey, AI_PREFERRED, AI_MODELS, deadModels, groqModelIds, whisperModels, ttsModel, lastAIError, ensureAIModels, resetAIDiscovery, isAIBusy, aiProblemText, aiRequest, stripThink, groqChat, askIELTSAI, askIELTSVision, parseJSONSafely } from "./ai.js?v=20261115a";
+        import { getBuiltInKey, AI_PREFERRED, AI_MODELS, deadModels, groqModelIds, whisperModels, ttsModel, lastAIError, ensureAIModels, resetAIDiscovery, isAIBusy, aiProblemText, aiRequest, stripThink, groqChat, askIELTSAI, askIELTSVision, parseJSONSafely } from "./ai.js?v=20261116a";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC5D9ubr8BfdngM5WJZuFnSnm1Xru0DhoY",
@@ -3990,7 +3990,39 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             ['Prepositions', 'She is good ____ mathematics.', ['in', 'at', 'on', 'for'], 1, 'We say "good at" a subject.'],
             ['Prepositions', 'He is interested ____ learning English.', ['on', 'at', 'in', 'of'], 2, 'We say "interested in".'],
             ['Linking words', '____ it was raining, we went to the park.', ['Because', 'Although', 'So', 'Despite'], 1, '"Although" + clause shows contrast.'],
-            ['Linking words', 'The company grew quickly; ____, it had problems with staff.', ['therefore', 'however', 'because', 'so'], 1, '"However" introduces a contrast.']
+            ['Linking words', 'The company grew quickly; ____, it had problems with staff.', ['therefore', 'however', 'because', 'so'], 1, '"However" introduces a contrast.'],
+            ['Tenses', 'We ____ each other for ten years.', ['know', 'have known', 'knew', 'are knowing'], 1, 'A period of time up to now needs the present perfect.'],
+            ['Tenses', 'This time next week, I ____ on a beach in Thailand.', ['lie', 'will be lying', 'have lain', 'lay'], 1, 'Future continuous: an action in progress at a future time.'],
+            ['Tenses', 'When I was young, we ____ to the pagoda every Sunday.', ['go', 'had gone', 'used to go', 'are going'], 2, '"Used to" describes past habits.'],
+            ['Tenses', 'He ____ a book at the moment, so please do not disturb him.', ['writes', 'is writing', 'wrote', 'has written'], 1, '"At the moment" needs the present continuous.'],
+            ['Articles', 'Can you pass me ____ salt, please?', ['a', 'an', 'the', 'no article'], 2, 'We both know which salt: the one on the table.'],
+            ['Articles', 'He wants to become ____ engineer.', ['a', 'an', 'the', 'no article'], 1, '"Engineer" starts with a vowel sound, so use "an".'],
+            ['Articles', '____ life is full of surprises.', ['A', 'An', 'The', 'No article'], 3, 'General ideas and uncountable nouns need no article.'],
+            ['Articles', 'She plays ____ guitar very well.', ['a', 'an', 'the', 'no article'], 2, 'Use "the" with musical instruments.'],
+            ['Conditionals', 'If I had studied harder, I ____ the exam.', ['would pass', 'would have passed', 'will pass', 'passed'], 1, 'Third conditional: if + past perfect, would have + past participle.'],
+            ['Conditionals', 'Unless you ____ now, you will miss the bus.', ['leave', 'will leave', 'left', 'would leave'], 0, '"Unless" is followed by the present simple for a real future condition.'],
+            ['Conditionals', 'What would you do if you ____ a million dollars?', ['win', 'won', 'will win', 'had won'], 1, 'Second conditional: if + past simple.'],
+            ['Conditionals', 'If you ____ ice, it melts.', ['heat', 'heated', 'will heat', 'would heat'], 0, 'Zero conditional: if + present, present, for general facts.'],
+            ['Passive voice', 'The report ____ by the end of the week.', ['will finish', 'will be finished', 'finishes', 'is finishing'], 1, 'Future passive: will be + past participle.'],
+            ['Passive voice', 'Many houses ____ by the flood last year.', ['destroyed', 'were destroyed', 'are destroyed', 'have destroyed'], 1, 'Past passive: were + past participle.'],
+            ['Passive voice', 'The new law has already ____ by parliament.', ['approved', 'been approved', 'being approved', 'be approved'], 1, 'Present perfect passive: has been + past participle.'],
+            ['Passive voice', 'Rice ____ in many parts of Cambodia.', ['grows', 'is grown', 'growing', 'are grown'], 1, 'Singular subject + is + past participle.'],
+            ['Relative clauses', 'The man ____ car was stolen called the police.', ['who', 'which', 'whose', 'whom'], 2, '"Whose" shows possession.'],
+            ['Relative clauses', 'Tuesday is the day ____ the shop is closed.', ['where', 'when', 'who', 'which'], 1, 'Use "when" for times.'],
+            ['Relative clauses', 'The book ____ I borrowed from you was fascinating.', ['who', 'where', 'that', 'whose'], 2, '"That" can introduce a defining clause about things.'],
+            ['Relative clauses', 'My sister, ____ lives in Canada, is a doctor.', ['that', 'who', 'which', 'whose'], 1, 'Non-defining clauses use "who" for people, never "that".'],
+            ['Subject-verb agreement', 'Each of the students ____ a laptop.', ['have', 'has', 'are having', 'were'], 1, '"Each" takes a singular verb.'],
+            ['Subject-verb agreement', 'A number of people ____ waiting outside.', ['is', 'are', 'was', 'has been'], 1, '"A number of" is plural.'],
+            ['Subject-verb agreement', 'News ____ travelling fast these days.', ['are', 'is', 'were', 'have been'], 1, '"News" is uncountable and singular.'],
+            ['Subject-verb agreement', 'Mathematics ____ my favourite subject.', ['are', 'is', 'were', 'have been'], 1, 'School subjects ending in -ics are singular.'],
+            ['Prepositions', 'She is responsible ____ the project.', ['of', 'for', 'to', 'with'], 1, 'We say "responsible for".'],
+            ['Prepositions', 'It depends ____ the weather.', ['of', 'from', 'on', 'at'], 2, 'We say "depend on".'],
+            ['Prepositions', 'This phone is different ____ mine.', ['from', 'than', 'of', 'between'], 0, '"Different from" is the standard form.'],
+            ['Prepositions', 'He apologised ____ being late.', ['of', 'for', 'about', 'on'], 1, 'We say "apologise for".'],
+            ['Linking words', 'He was tired; ____, he finished the work.', ['therefore', 'nevertheless', 'because', 'so that'], 1, '"Nevertheless" shows contrast.'],
+            ['Linking words', 'She studied hard, ____ she passed the exam easily.', ['although', 'so', 'despite', 'unless'], 1, '"So" shows a result.'],
+            ['Linking words', '____ the heavy traffic, we arrived on time.', ['Although', 'Despite', 'Because', 'However'], 1, '"Despite" is followed by a noun phrase.'],
+            ['Linking words', 'Some people prefer cities, ____ others enjoy the countryside.', ['whereas', 'because', 'therefore', 'unless'], 0, '"Whereas" contrasts two groups.']
         ];
         const VOCAB_FALLBACK = [
             ['mitigate', 'verb', 'to make something less harmful or serious', 'Governments must act to mitigate the effects of climate change.', 'mitigate the impact'],
@@ -4008,7 +4040,39 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             ['adapt', 'verb', 'to change to suit new conditions', 'Students must adapt to new ways of learning.', 'adapt to change'],
             ['benefit', 'noun', 'an advantage or good result', 'The main benefit of remote work is flexibility.', 'reap the benefits'],
             ['tackle', 'verb', 'to try to deal with a problem', 'Governments must tackle unemployment.', 'tackle the problem'],
-            ['diverse', 'adjective', 'including many different kinds', 'Cambodia has a diverse culture and cuisine.', 'a diverse range of']
+            ['diverse', 'adjective', 'including many different kinds', 'Cambodia has a diverse culture and cuisine.', 'a diverse range of'],
+            ['reliable', 'adjective', 'able to be trusted to work well', 'Public transport must be reliable if people are to use it.', 'a reliable source'],
+            ['inevitable', 'adjective', 'certain to happen and impossible to avoid', 'Some change is inevitable in a growing city.', 'an inevitable result'],
+            ['vulnerable', 'adjective', 'easily harmed or affected', 'Children are especially vulnerable to online risks.', 'vulnerable groups'],
+            ['obtain', 'verb', 'to get something, usually by effort', 'Students can obtain a visa online.', 'obtain permission'],
+            ['implement', 'verb', 'to put a plan into action', 'The council plans to implement the new rules next year.', 'implement a policy'],
+            ['encounter', 'verb', 'to meet or face something, often a problem', 'Many learners encounter difficulties with spelling.', 'encounter problems'],
+            ['promote', 'verb', 'to encourage or support something', 'Schools should promote healthy eating.', 'promote awareness'],
+            ['phenomenon', 'noun', 'something that happens and is interesting or unusual', 'Urban migration is a global phenomenon.', 'a natural phenomenon'],
+            ['resource', 'noun', 'a supply of something useful', 'Water is a precious resource.', 'natural resources'],
+            ['conserve', 'verb', 'to protect something and use it carefully', 'We must conserve energy and water.', 'conserve energy'],
+            ['deteriorate', 'verb', 'to become worse', 'Air quality has deteriorated in many cities.', 'deteriorate rapidly'],
+            ['perspective', 'noun', 'a particular way of thinking about something', 'Travel gives you a new perspective on life.', 'from a different perspective'],
+            ['demonstrate', 'verb', 'to show clearly that something is true', 'The results demonstrate that exercise improves mood.', 'demonstrate the need for'],
+            ['accessible', 'adjective', 'easy to reach, use or understand', 'Education should be accessible to everyone.', 'easily accessible'],
+            ['rapid', 'adjective', 'happening very quickly', 'Rapid growth has put pressure on housing.', 'rapid development'],
+            ['accumulate', 'verb', 'to gather or build up over time', 'Plastic waste accumulates in the oceans.', 'accumulate wealth'],
+            ['restrict', 'verb', 'to limit the size or amount of something', 'Some countries restrict the use of cars in city centres.', 'restrict access'],
+            ['launch', 'verb', 'to start something new, such as a project', 'The government will launch a campaign against littering.', 'launch a campaign'],
+            ['commute', 'verb', 'to travel regularly between home and work', 'Millions of people commute to the capital every day.', 'a long commute'],
+            ['sufficient', 'adjective', 'as much as is needed', 'There is not sufficient evidence to support this claim.', 'sufficient funds'],
+            ['inhabitant', 'noun', 'a person who lives in a place', 'The city has over two million inhabitants.', 'local inhabitants'],
+            ['decline', 'noun', 'a gradual fall in amount or quality', 'There has been a steady decline in fish stocks.', 'a sharp decline'],
+            ['prioritise', 'verb', 'to treat something as more important than other things', 'Employers should prioritise staff training.', 'prioritise needs'],
+            ['reluctant', 'adjective', 'not willing to do something', 'Many people are reluctant to change their habits.', 'be reluctant to'],
+            ['assess', 'verb', 'to judge the quality or amount of something', 'Teachers assess students through exams and projects.', 'assess the impact'],
+            ['subsequent', 'adjective', 'coming after something else', 'Subsequent studies confirmed these findings.', 'subsequent events'],
+            ['affordable', 'adjective', 'not too expensive', 'Affordable housing is a major concern.', 'affordable prices'],
+            ['hinder', 'verb', 'to make it difficult for something to happen', 'Poor roads hinder economic development.', 'hinder progress'],
+            ['proportion', 'noun', 'a part of a whole', 'A large proportion of students study abroad.', 'a small proportion of'],
+            ['viable', 'adjective', 'able to work successfully', 'Solar power is now a viable alternative to coal.', 'a viable option'],
+            ['engage', 'verb', 'to take part or involve someone in something', 'Good teachers engage students in discussion.', 'engage in'],
+            ['scarce', 'adjective', 'not enough in supply', 'Fresh water is scarce in some regions.', 'become scarce']
         ].map(([word, pos, meaning, example, collocation]) => ({ word, pos, meaning, example, collocation, km: '' }));
 
         const qzShuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
@@ -4092,40 +4156,98 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             });
             qzRun(qzEl('vocab-stage'), items, [{ label: 'Quiz again', fn: () => vocabQuiz(words) }, { label: 'Back to the words', fn: () => vocabWords === words ? renderVocabCards() : (qzEl('vocab-stage').innerHTML = '') }]);
         }
+        // ----- Freshness: remember what this student has already seen, so "new" really is new -----
+        const seenKey = (kind) => `IELTS_SEEN_${kind}_${auth.currentUser?.uid || 'x'}`;
+        const seenGet = (kind) => { try { const a = JSON.parse(localStorage.getItem(seenKey(kind)) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+        function seenAdd(kind, items, cap = 500) { try { const cur = seenGet(kind).filter(x => !items.includes(x)); cur.push(...items); localStorage.setItem(seenKey(kind), JSON.stringify(cur.slice(-cap))); } catch (e) {} }
+        const pickN = (arr, n) => qzShuffle(arr).slice(0, n);
+        const stemOf = (q) => String(q).toLowerCase().replace(/<[^>]*>/g, ' ').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 70);
+        const VOCAB_ANGLES = {
+            'Education': ['university life and study habits', 'online learning and technology in schools', 'exams, grades and assessment', 'teachers and teaching methods', 'skills for employment', 'school funding and access to education'],
+            'Environment': ['climate change and emissions', 'wildlife and conservation', 'pollution and waste', 'renewable energy', 'urban planning and green spaces', 'farming and food supply'],
+            'Technology': ['artificial intelligence and automation', 'social media and communication', 'privacy and cyber security', 'gadgets in daily life', 'online shopping and payments', 'robots and the future of work'],
+            'Health': ['diet and nutrition', 'mental health and stress', 'healthcare systems', 'exercise and lifestyle', 'ageing and elderly care', 'public health and disease'],
+            'Work & Money': ['jobs and careers', 'business and the economy', 'salaries and the cost of living', 'entrepreneurs and start-ups', 'working from home', 'poverty and inequality'],
+            'Society': ['crime and punishment', 'family and relationships', 'globalisation and migration', 'young people and ageing populations', 'media and advertising', 'charity and volunteering'],
+            'Travel & Culture': ['tourism and its effects', 'traditions and festivals', 'languages and communication', 'cities and housing', 'transport and commuting', 'museums and the arts'],
+            'Science': ['space exploration', 'medicine and research', 'genetics and biology', 'energy and engineering', 'data and statistics', 'inventions and discoveries']
+        };
+        const VOCAB_KINDS = ['verbs and phrasal verbs', 'adjectives', 'abstract nouns', 'adverbs', 'collocations and fixed phrases', 'linking and discourse words'];
+        const GRAMMAR_FOCUS = {
+            'Tenses': ['present perfect or past simple', 'future forms (will, going to, present continuous)', 'past perfect in stories', 'present continuous for trends', 'since / for / ago / already / yet', 'reported speech tense changes', 'used to and would'],
+            'Articles': ['a / an / the with first and second mention', 'no article with general ideas', 'the with unique things and rivers or countries', 'a vs an with vowel sounds', 'articles with jobs and nationalities'],
+            'Conditionals': ['zero and first conditional', 'second conditional for unreal situations', 'third conditional for regrets', 'unless / provided that / as long as', 'mixed conditionals', 'wish and if only'],
+            'Passive voice': ['present and past passive', 'passive with modals', 'present perfect passive', 'passive reporting verbs (is said to, is believed that)', 'get-passive and causative have'],
+            'Relative clauses': ['who / which / that', 'whose and where and when', 'defining or non-defining clauses with commas', 'reduced relative clauses (-ing and -ed)', 'prepositions with relative pronouns'],
+            'Subject-verb agreement': ['collective nouns', 'the number of / a number of', 'neither...nor and either...or', 'uncountable and plural-looking nouns', 'each / every / everyone', 'long subjects with phrases between'],
+            'Prepositions': ['adjective + preposition', 'verb + preposition', 'noun + preposition', 'time and place prepositions', 'prepositions of movement and graphs'],
+            'Linking words': ['contrast (although, whereas, however)', 'reason and result (because, so, therefore)', 'addition (moreover, in addition)', 'concession (despite, in spite of)', 'sequencing and examples (firstly, for instance)']
+        };
+        const FRESH_THEMES = ['university life', 'travel', 'technology', 'the environment', 'health', 'work', 'family', 'food', 'city life', 'sport', 'education', 'the media', 'shopping', 'festivals', 'transport', 'the weather', 'money', 'museums', 'volunteering', 'farming'];
+        // ready-made items: never-seen ones first (random order), then the already-seen ones
+        function freshOrder(list, seen, keyOf) { const all = qzShuffle(list), old = (x) => seen.includes(keyOf(x)); return [...all.filter(x => !old(x)), ...all.filter(old)]; }
+
         async function newVocabWords() {
             const btn = qzEl('btn-vocab-new'); if (!btn || btn.disabled) return;
             const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>Preparing words...`;
             try {
-                let words = null;
+                const seen = seenGet('vocab'), seenSet = new Set(seen);
+                const fresh = []; let repeatsOnly = false;
                 if (!aiBusyGuard() && Date.now() >= aiDownUntil) {
-                    const raw = await askIELTSAI(`Give 8 useful IELTS vocabulary items on the topic "${vocabTopic}", at band 6.5 to 8 level. Return JSON only: {"words":[{"word":"","pos":"noun|verb|adjective|adverb|phrase","meaning":"simple English definition, max 14 words","example":"one natural sentence that uses the word","collocation":"a common phrase with it","km":"short Khmer meaning"}]}`, "You are an IELTS vocabulary teacher. Output valid JSON only.", true, { maxTokens: 1500, budgetMs: 30000, requestMs: 30000 });
-                    const p = parseJSONSafely(raw);
-                    const ok = Array.isArray(p?.words) ? p.words.filter(w => w && typeof w.word === 'string' && typeof w.meaning === 'string' && typeof w.example === 'string' && w.word.trim().length > 2 && w.meaning.length > 5) : [];
-                    if (ok.length >= 6) words = ok.slice(0, 8).map(w => ({ word: w.word.trim().toLowerCase(), pos: String(w.pos || '').slice(0, 20), meaning: w.meaning.trim(), example: w.example.trim(), collocation: String(w.collocation || '').trim(), km: String(w.km || '').trim().slice(0, 60) }));
+                    const askAI = async (angle) => {
+                        const avoid = [...new Set([...seen.slice(-90), ...fresh.map(w => w.word)])].join(', ');
+                        const raw = await askIELTSAI(`Give 8 useful IELTS vocabulary items on the topic "${vocabTopic}", focusing on ${angle}. Level: band 6.5 to 8. Mix word types, especially ${pickN(VOCAB_KINDS, 2).join(' and ')}. Choose less obvious words, not the first ones that come to mind.${avoid ? ` The student has already studied these words, so do NOT use any of them: ${avoid}.` : ''} Variation code ${Math.random().toString(36).slice(2, 8)}. Return JSON only: {"words":[{"word":"","pos":"noun|verb|adjective|adverb|phrase","meaning":"simple English definition, max 14 words","example":"one natural sentence that uses the word","collocation":"a common phrase with it","km":"short Khmer meaning"}]}`, "You are an IELTS vocabulary teacher. Output valid JSON only.", true, { maxTokens: 1500, budgetMs: 30000, requestMs: 30000, temperature: 1.0 });
+                        const p = parseJSONSafely(raw);
+                        return Array.isArray(p?.words) ? p.words.filter(w => w && typeof w.word === 'string' && typeof w.meaning === 'string' && typeof w.example === 'string' && w.word.trim().length > 2 && w.meaning.length > 5).map(w => ({ word: w.word.trim().toLowerCase(), pos: String(w.pos || '').slice(0, 20), meaning: w.meaning.trim(), example: w.example.trim(), collocation: String(w.collocation || '').trim(), km: String(w.km || '').trim().slice(0, 60) })) : [];
+                    };
+                    const angles = pickN(VOCAB_ANGLES[vocabTopic] || [vocabTopic], 2);
+                    const t0 = Date.now();
+                    const add = (list) => list.forEach(w => { if (!seenSet.has(w.word) && !fresh.some(f => f.word === w.word)) fresh.push(w); });
+                    add(await askAI(angles[0]));
+                    if (fresh.length < 6 && Date.now() - t0 < 20000) add(await askAI(angles[1] || angles[0]));   // the AI repeated old words: ask once more from another angle
+                    if (fresh.length < 6) repeatsOnly = true;
                 }
-                if (!words) { words = qzShuffle(VOCAB_FALLBACK).slice(0, 8); showToast("The AI is busy, so here is a ready-made set of words.", "info"); }
+                let words = fresh.length >= 6 ? fresh.slice(0, 8) : null;
+                if (!words) {
+                    const pool = freshOrder(VOCAB_FALLBACK.filter(w => !fresh.some(f => f.word === w.word)), seen, w => w.word);
+                    words = [...fresh, ...pool].slice(0, 8);
+                    showToast(repeatsOnly ? "The AI kept giving words you already know, so some are from the ready-made list." : "The AI is busy, so here is a ready-made set of words.", "info");
+                }
+                seenAdd('vocab', words.map(w => w.word));
                 vocabWords = words; renderVocabCards();
             } finally { btn.disabled = false; btn.innerHTML = orig; }
         }
 
         // ----- Grammar -----
         let grammarTopic = GRAMMAR_TOPICS[0];
-        function grammarFromBank(topic) {
-            let rows = GRAMMAR_BANK.filter(r => r[0] === topic); if (rows.length < 4) rows = qzShuffle(GRAMMAR_BANK).slice(0, 8);
-            return rows.map(r => qzMakeItem(escapeHTML(r[1]), r[2][r[3]], r[2].filter((_, k) => k !== r[3]), r[4]));
+        function grammarFromBank(topic, seen) {
+            const mine = freshOrder(GRAMMAR_BANK.filter(r => r[0] === topic), seen, r => stemOf(r[1]));
+            const rows = (mine.length >= 5 ? mine : [...mine, ...freshOrder(GRAMMAR_BANK.filter(r => r[0] !== topic), seen, r => stemOf(r[1]))]).slice(0, 8);
+            return rows.map(r => Object.assign(qzMakeItem(escapeHTML(r[1]), r[2][r[3]], r[2].filter((_, k) => k !== r[3]), r[4]), { key: stemOf(r[1]) }));
         }
         async function newGrammarDrill() {
             const btn = qzEl('btn-grammar-new'); if (!btn || btn.disabled) return;
             const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>Preparing questions...`;
             try {
+                const seen = seenGet('gram'), seenSet = new Set(seen);
                 let items = null, rule = GRAMMAR_RULES[grammarTopic] || '';
                 if (!aiBusyGuard() && Date.now() >= aiDownUntil) {
-                    const raw = await askIELTSAI(`Write 8 IELTS-level grammar practice questions on "${grammarTopic}". Each is multiple choice with 4 options and exactly one correct answer. Mix "choose the word or form that completes the sentence" and "choose the sentence without a mistake". Return JSON only: {"rule":"the rule in 2 short sentences","questions":[{"q":"","options":["","","",""],"ans":0,"exp":"max 15 words explaining why"}]}`, "You are an IELTS grammar teacher. Output valid JSON only.", true, { maxTokens: 2200, budgetMs: 35000, requestMs: 35000 });
+                    const recent = seen.slice(-10).join(' | ');
+                    const raw = await askIELTSAI(`Write 8 IELTS-level grammar practice questions on "${grammarTopic}". Focus on: ${pickN(GRAMMAR_FOCUS[grammarTopic] || [grammarTopic], 3).join('; ')}. Set the sentences in these themes: ${pickN(FRESH_THEMES, 4).join(', ')}. Each is multiple choice with 4 options and exactly one correct answer. Mix "choose the word or form that completes the sentence" and "choose the sentence without a mistake". Every question must differ in structure and vocabulary from the others.${recent ? ` Do not repeat or closely copy these earlier questions: ${recent}.` : ''} Variation code ${Math.random().toString(36).slice(2, 8)}. Return JSON only: {"rule":"the rule in 2 short sentences","questions":[{"q":"","options":["","","",""],"ans":0,"exp":"max 15 words explaining why"}]}`, "You are an IELTS grammar teacher. Output valid JSON only.", true, { maxTokens: 2200, budgetMs: 35000, requestMs: 35000, temperature: 1.0 });
                     const p = parseJSONSafely(raw);
                     const good = Array.isArray(p?.questions) ? p.questions.filter(q => q && typeof q.q === 'string' && Array.isArray(q.options) && q.options.length === 4 && q.options.every(o => typeof o === 'string' && o.trim()) && new Set(q.options.map(o => o.trim().toLowerCase())).size === 4 && Number.isInteger(q.ans) && q.ans >= 0 && q.ans <= 3) : [];
-                    if (good.length >= 6) { items = good.slice(0, 8).map(q => qzMakeItem(escapeHTML(q.q), q.options[q.ans].trim(), q.options.filter((_, k) => k !== q.ans).map(o => o.trim()), String(q.exp || '').slice(0, 160))); if (typeof p.rule === 'string' && p.rule.length > 15) rule = p.rule; }
+                    const novel = good.filter(q => !seenSet.has(stemOf(q.q)));
+                    const toItem = (q) => Object.assign(qzMakeItem(escapeHTML(q.q), q.options[q.ans].trim(), q.options.filter((_, k) => k !== q.ans).map(o => o.trim()), String(q.exp || '').slice(0, 160)), { key: stemOf(q.q) });
+                    if (novel.length >= 6) items = novel.slice(0, 8).map(toItem);
+                    else if (good.length >= 6) {
+                        // the AI mostly repeated old questions: keep its new ones and top up with ready-made questions this student has not seen
+                        const mix = [...novel.map(toItem), ...grammarFromBank(grammarTopic, seen).filter(it => !seenSet.has(it.key))];
+                        items = (mix.length >= 6 ? mix : good.map(toItem)).slice(0, 8);
+                    }
+                    if (items && typeof p.rule === 'string' && p.rule.length > 15) rule = p.rule;
                 }
-                if (!items) { items = grammarFromBank(grammarTopic); showToast("The AI is busy, so here is a ready-made drill.", "info"); }
+                if (!items) { items = grammarFromBank(grammarTopic, seen); showToast("The AI is busy, so here is a ready-made drill.", "info"); }
+                seenAdd('gram', items.map(it => it.key).filter(Boolean), 300);
                 const stage = qzEl('grammar-stage');
                 stage.innerHTML = `<div class="qz-rule"><b>Quick rule: ${escapeHTML(grammarTopic)}</b><br>${escapeHTML(rule)}</div><button type="button" class="sx-btn sx-btn-main" id="btn-grammar-begin">Start the ${items.length} questions</button>`;
                 const actions = [{ label: 'New drill', fn: newGrammarDrill }, { label: 'Same questions again', fn: () => start() }];
