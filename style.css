@@ -731,3 +731,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .xr-bad { border-left-color: #fb7185 !important; } .xr-bad .xr-dot { background: #fb7185; }
 .xr-info { border-left-color: #38bdf8 !important; } .xr-info .xr-dot { background: #38bdf8; }
 .xr-note { margin: 0.6rem 0 0; font-size: 0.72rem; color: #94a3b8; }
+
+/* ---- AI Tutor: hands-free level bar ---- */
+.ai-lvl { display: block; height: 5px; margin-top: 0.35rem; border-radius: 999px; background: rgba(255,255,255,0.14); overflow: hidden; }
+.ai-lvl i { display: block; height: 100%; width: 0; background: #fb7185; border-radius: 999px; transition: width 0.1s linear; }

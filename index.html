@@ -40,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261117e">
+    <link rel="stylesheet" href="style.css?v=20261117f">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -357,7 +357,7 @@
                             <input type="text" id="ai-input" class="ai-input" placeholder="Type your question..." autocomplete="off">
                             <button type="button" id="ai-send-btn" class="ai-send" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
                         </div>
-                        <label class="ai-auto"><input type="checkbox" id="ai-mic-auto"><span>Send my question automatically after I speak</span></label>
+                        <label class="ai-auto"><input type="checkbox" id="ai-mic-auto"><span>Hands-free: stop listening and send by itself when I pause</span></label>
                     </div>
                   </div>
                 </div>
@@ -1810,7 +1810,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
 
         // ===== AI Tutor microphone: speak instead of typing. Whisper turns the voice into text, it lands in the box, you press Send =====
         const TM_PROMPT = 'IELTS, band score, Task 1, Task 2, writing, speaking, vocabulary, grammar, collocation.';
-        const tm = { state: 'idle', rec: null, stream: null, chunks: [], t0: 0, tick: 0, stopT: 0, gen: 0 };
+        const tm = { state: 'idle', rec: null, stream: null, chunks: [], t0: 0, tick: 0, stopT: 0, gen: 0, ac: null, vad: 0, hf: false };
         const tmEl = (id) => document.getElementById(id);
         function tmPaint() {
             const btn = tmEl('ai-mic-btn'), st = tmEl('ai-mic-status'), inp = tmEl('ai-input');
@@ -1819,23 +1819,26 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             btn.innerHTML = tm.state === 'busy' ? '<i class="fa-solid fa-spinner fa-spin"></i>' : tm.state === 'rec' ? '<i class="fa-solid fa-stop"></i>' : '<i class="fa-solid fa-microphone"></i>';
             btn.setAttribute('aria-label', tm.state === 'rec' ? 'Stop and write my words' : 'Speak your question');
             btn.setAttribute('aria-pressed', String(tm.state === 'rec'));
-            btn.title = tm.state === 'rec' ? 'Tap to finish' : 'Speak instead of typing';
+            btn.title = tm.state === 'rec' ? (tm.hf ? 'Tap to finish now' : 'Tap to finish') : 'Speak instead of typing';
             if (inp) inp.placeholder = tm.state === 'rec' ? 'Listening...' : 'Type your question...';
             if (!st) return;
             if (tm.state === 'idle') { st.classList.add('hide'); st.innerHTML = ''; return; }
             st.classList.remove('hide');
             st.innerHTML = tm.state === 'rec'
-                ? '<span class="ai-rec-dot"></span><span>Listening... <b id="ai-mic-time">0:00</b> Tap the red button when you finish.</span><button type="button" id="ai-mic-cancel" class="sx-link">Cancel</button>'
+                ? (tm.hf
+                    ? '<span class="ai-rec-dot"></span><span><span id="ai-mic-msg">Listening... speak your question.</span> <b id="ai-mic-time">0:00</b><span class="ai-lvl" aria-hidden="true"><i id="ai-mic-level"></i></span></span><button type="button" id="ai-mic-cancel" class="sx-link">Cancel</button>'
+                    : '<span class="ai-rec-dot"></span><span>Listening... <b id="ai-mic-time">0:00</b> Tap the red button when you finish.</span><button type="button" id="ai-mic-cancel" class="sx-link">Cancel</button>')
                 : '<i class="fa-solid fa-spinner fa-spin"></i><span>Turning your voice into text...</span>';
         }
-        function tmCleanup() { clearInterval(tm.tick); clearTimeout(tm.stopT); try { tm.stream?.getTracks().forEach(t => t.stop()); } catch (e) {} tm.stream = null; }
+        function tmCleanup() { clearInterval(tm.tick); clearTimeout(tm.stopT); tmCloseAudio(); try { tm.stream?.getTracks().forEach(t => t.stop()); } catch (e) {} tm.stream = null; }
         async function tmStart() {
             if (tm.state === 'busy') return showToast("Still turning your last recording into text...", "info");
             if (isRecordingNow()) return showToast("Finish the other recording first (Speaking test).", "info");
             if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return showToast("This browser can't record audio. Type your question, or try Chrome.", "error");
             if (aiBusyGuard()) return;
+            tmOpenAudio();
             try { tm.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
-            catch (e) { return showToast("Allow the microphone in your browser, then tap the mic again.", "error"); }
+            catch (e) { tmCloseAudio(); return showToast("Allow the microphone in your browser, then tap the mic again.", "error"); }
             const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => MediaRecorder.isTypeSupported?.(m));
             try { tm.rec = mime ? new MediaRecorder(tm.stream, { mimeType: mime }) : new MediaRecorder(tm.stream); }
             catch (e) { tmCleanup(); return showToast("This browser can't record audio. Type your question, or try Chrome.", "error"); }
@@ -1844,9 +1847,53 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             tm.rec.ondataavailable = (e) => { if (e.data && e.data.size) tm.chunks.push(e.data); };
             tm.rec.onstop = () => tmDone(g);
             tm.rec.start();
-            tm.state = 'rec'; tmPaint();
+            tm.state = 'rec'; tm.hf = !!tm.ac; tmPaint();
+            if (tm.hf && !tmWatch(g)) { tm.hf = false; tmPaint(); }
             tm.tick = setInterval(() => { const s = Math.floor((Date.now() - tm.t0) / 1000), el = tmEl('ai-mic-time'); if (el) el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }, 250);
             tm.stopT = setTimeout(() => { if (tm.state === 'rec') tmStop(); }, 120000);   // two minutes is plenty for a question
+        }
+        // ===== Hands-free: while recording, watch how loud the voice is. A pause after you spoke stops the recording by itself =====
+        const tmVad = () => Object.assign({ silenceMs: 1700, noSpeechMs: 9000, minSpeechMs: 350 }, window.__ieltsVad || {});
+        function tmCloseAudio() { clearInterval(tm.vad); tm.vad = 0; try { tm.ac && tm.ac.close && tm.ac.close(); } catch (e) {} tm.ac = null; }
+        function tmOpenAudio() {
+            tmCloseAudio();
+            if (!tmEl('ai-mic-auto')?.checked) return;
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return;
+            // made right inside the tap, so phones allow it to run
+            try { tm.ac = new AC(); if (tm.ac.state === 'suspended' && tm.ac.resume) tm.ac.resume(); } catch (e) { tm.ac = null; }
+        }
+        function tmMsg(t) { const el = tmEl('ai-mic-msg'); if (el) el.textContent = t; }
+        function tmWatch(g) {
+            const ac = tm.ac;
+            if (!ac || !tm.stream) return false;
+            let an;
+            try { const src = ac.createMediaStreamSource(tm.stream); an = ac.createAnalyser(); an.fftSize = 1024; src.connect(an); }
+            catch (e) { tmCloseAudio(); return false; }
+            const cfg = tmVad(), buf = new Uint8Array(an.fftSize);
+            let floor = 0.01, speech = 0, quiet = 0, spoke = false, peak = 0, last = Date.now();
+            const t0 = last;
+            tm.vad = setInterval(() => {
+                if (g !== tm.gen || tm.state !== 'rec') return tmCloseAudio();
+                const now = Date.now(), dt = Math.min(now - last, 400); last = now;
+                an.getByteTimeDomainData(buf);
+                let sum = 0;
+                for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+                const rms = Math.sqrt(sum / buf.length);
+                peak = Math.max(peak, rms);
+                const loud = rms > floor * 2.5 + 0.012;
+                if (!loud) floor = Math.min(0.06, floor + (rms - floor) * 0.05);   // learns how noisy the room is
+                const lv = tmEl('ai-mic-level'); if (lv) lv.style.width = Math.min(100, Math.round(rms / 0.2 * 100)) + '%';
+                if (loud) { speech += dt; quiet = 0; if (!spoke && speech >= cfg.minSpeechMs) { spoke = true; tmMsg('Hearing you. I will stop when you pause.'); } }
+                else quiet += dt;
+                if (spoke && quiet >= cfg.silenceMs) { tmCloseAudio(); return tmStop(); }
+                if (!spoke && now - t0 >= cfg.noSpeechMs) {
+                    if (ac.state !== 'running') { tm.hf = false; tmCloseAudio(); tmPaint(); return; }   // this phone gives no sound level: finish by tapping the red button
+                    tmCloseAudio(); tmCancel();
+                    showToast("I did not hear you. Check your microphone, then tap the mic and speak.", "error");
+                }
+            }, 100);
+            return true;
         }
         function tmStop() { if (tm.state !== 'rec') return; clearInterval(tm.tick); clearTimeout(tm.stopT); try { tm.rec.stop(); } catch (e) { tmCancel(); } }
         function tmCancel() {
@@ -1873,8 +1920,10 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
                 const inp = tmEl('ai-input'); if (!inp) return;
                 inp.value = inp.value.trim() ? inp.value.trim() + ' ' + clean : clean;
                 inp.dispatchEvent(new Event('input', { bubbles: true }));
-                if (tmEl('ai-mic-auto')?.checked) sendChat();
-                else { tmEl('ai-send-btn')?.classList.add('ready'); if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches)) inp.focus(); }
+                if (tmEl('ai-mic-auto')?.checked) {
+                    try { Promise.resolve(sendChat()).catch(() => {}); } catch (e) {}
+                    if (inp.value.trim()) tmEl('ai-send-btn')?.classList.add('ready');   // the AI was busy, so the words wait in the box
+                } else { tmEl('ai-send-btn')?.classList.add('ready'); if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches)) inp.focus(); }
             } catch (e) {
                 if (g !== tm.gen) return;
                 tm.state = 'idle'; tmPaint();
