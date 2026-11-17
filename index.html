@@ -40,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261116b">
+    <link rel="stylesheet" href="style.css?v=20261117a">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -597,6 +597,7 @@
                   <div class="sx sx-m">
                     <div class="sx-head"><div class="sx-head-ic"><i class="fa-solid fa-triangle-exclamation"></i></div><div><h2>Mistake Notebook</h2><p>Every Reading and Listening question you got wrong</p></div></div>
                     <div id="mk-stats" class="mk-stats"></div>
+                    <div id="mk-insights" class="mk-ins"></div>
                     <div id="mk-filters" class="mk-filters"></div>
                     <div id="mk-actions" class="sx-row"></div>
                     <div id="mk-stage" class="qz-stage"></div>
@@ -4395,14 +4396,19 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             const stats = qzEl('mk-stats'); if (!stats) return;
             const n = (k) => open.filter(m => m.kind === k).length;
             stats.innerHTML = `<div class="mk-stat"><b>${open.length}</b><span>To review</span></div><div class="mk-stat"><b>${n('reading')}</b><span>Reading</span></div><div class="mk-stat"><b>${n('listening')}</b><span>Listening</span></div><div class="mk-stat ok"><b>${all.length - open.length}</b><span>Mastered</span></div>`;
+            const insBox = qzEl('mk-insights');
+            if (insBox) { const ins = mkInsights(open); insBox.innerHTML = ins.length ? '<h4>What your mistakes show</h4><ul>' + ins.map(x => '<li>' + x + '</li>').join('') + '</ul>' : ''; }
             const types = [...new Set(open.map(m => m.type))];
             const chip = (grp, val, label, cnt, on) => `<button type="button" class="qz-chip${on ? ' on' : ''}" data-mk${grp}="${val}">${label} (${cnt})</button>`;
             qzEl('mk-filters').innerHTML = open.length ? chip('kind', 'all', 'All', open.length, mkKind === 'all') + chip('kind', 'reading', 'Reading', n('reading'), mkKind === 'reading') + chip('kind', 'listening', 'Listening', n('listening'), mkKind === 'listening')
                 + types.map(t => chip('type', t, MK_TYPES[t] || t, open.filter(m => m.type === t).length, mkType === t)).join('') + (mkType !== 'all' ? chip('type', 'all', 'Any type', open.length, false) : '') : '';
             const shown = open.filter(m => (mkKind === 'all' || m.kind === mkKind) && (mkType === 'all' || m.type === mkType));
             const practicable = shown.filter(m => m.type !== 'match');
+            const tgt = mkTarget(), lastDrill = tgt ? mkDrillHist().filter(h => h.kind === tgt.kind && h.type === tgt.type).slice(-1)[0] : null;
             qzEl('mk-actions').innerHTML = (practicable.length ? `<button type="button" class="sx-btn sx-btn-main" id="mk-practice"><i class="fa-solid fa-bolt"></i>Practise ${Math.min(10, practicable.length)} of these</button>` : '')
-                + (all.length - open.length ? `<button type="button" class="sx-btn sx-btn-ghost" id="mk-bring">Bring back ${all.length - open.length} mastered</button>` : '');
+                + (tgt ? `<button type="button" class="sx-btn sx-btn-ghost" id="mk-drill" style="color:#fcd34d"><i class="fa-solid fa-wand-magic-sparkles"></i>Fix my weakest skill: ${escapeHTML(MK_TYPES[tgt.type] || tgt.type)} (${tgt.kind === 'reading' ? 'Reading' : 'Listening'})</button>` : '')
+                + (all.length - open.length ? `<button type="button" class="sx-btn sx-btn-ghost" id="mk-bring">Bring back ${all.length - open.length} mastered</button>` : '')
+                + (lastDrill ? `<p class="mk-hist">Your last drill on this skill: <b>${lastDrill.got} / ${lastDrill.n}</b>. New AI questions every time.</p>` : '');
             qzEl('mk-stage').innerHTML = '';
             qzEl('mk-list').innerHTML = !all.length
                 ? `<div class="sx-paper"><div class="sx-empty"><b>No mistakes yet</b><span>Finish a Reading or Listening test. Every question you get wrong is collected here with the right answer and an explanation, so you can practise it again.</span></div></div>`
@@ -4414,17 +4420,25 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
                     ${m.exp ? `<div class="qz-why">${escapeHTML(m.exp)}</div>` : ''}
                     <div class="mk-btns"><button type="button" class="sx-link" data-mk-explain="${m.key}"><i class="fa-solid fa-wand-magic-sparkles"></i> Explain with AI tutor</button><button type="button" class="sx-link" data-mk-done="${m.key}"><i class="fa-solid fa-check"></i> I understand this</button></div></div>`).join('');
         }
-        function mkRun(items) {
+        // Runs a set of questions. ctx (optional) turns it into a targeted drill: { drill, label, kind, type, passage, audio, tip, again, onDone }
+        function mkRun(items, ctx = {}) {
             const stage = qzEl('mk-stage'); let i = 0, got = 0;
             qzEl('mk-list').innerHTML = ''; qzEl('mk-actions').innerHTML = ''; qzEl('mk-filters').innerHTML = '';
+            const ins = qzEl('mk-insights'); if (ins) ins.innerHTML = '';
             const finish = () => {
-                stage.innerHTML = `<div class="qz-q" style="text-align:center"><div class="qz-score">${got} / ${items.length}</div><div>${got === items.length ? 'Perfect. All of these are now mastered.' : 'Questions you got right are marked as mastered. The rest stay in your notebook.'}</div></div><div class="sx-row"><button type="button" class="sx-btn sx-btn-main" id="mk-back">Back to my notebook</button></div>`;
+                if (ctx.audio) stopListening();
+                if (ctx.onDone) ctx.onDone(got, items.length);
+                const msg = ctx.drill
+                    ? (got === items.length ? 'Perfect. You have this skill under control.' : got >= items.length * 0.6 ? 'Good. Read each explanation again, then try another drill.' : 'This one is still tricky. Re-read the tip, then try another drill.')
+                    : (got === items.length ? 'Perfect. All of these are now mastered.' : 'Questions you got right are marked as mastered. The rest stay in your notebook.');
+                stage.innerHTML = `<div class="qz-q" style="text-align:center"><div class="qz-score">${got} / ${items.length}</div><div>${msg}</div></div>${ctx.tip ? `<div class="mk-tip"><b>Tip:</b> ${escapeHTML(ctx.tip)}</div>` : ''}<div class="sx-row">${ctx.again ? '<button type="button" class="sx-btn sx-btn-main" id="mk-again">Another drill</button><button type="button" class="sx-btn sx-btn-ghost" id="mk-back">Back to my notebook</button>' : '<button type="button" class="sx-btn sx-btn-main" id="mk-back">Back to my notebook</button>'}</div>`;
                 qzEl('mk-back').addEventListener('click', renderMistakes);
+                qzEl('mk-again')?.addEventListener('click', ctx.again);
             };
             const answer = (m, given) => {
                 const ok = examIsCorrect(m.type === 'gap' ? { type: 'gap', ans: m.ans, alt: m.alt } : { type: m.type, ans: m.ans }, given);
-                if (ok) { got++; mkMastered[m.key] = Date.now(); saveMastered(); updateMistakeBadge(); }
-                qzEl('mk-fb').innerHTML = `<div class="qz-exp"><b>${ok ? 'Correct!' : 'Not quite.'}</b> ${ok ? '' : 'Answer: ' + escapeHTML(m.right) + '. '}${escapeHTML(m.exp || '')}</div><button type="button" class="sx-btn sx-btn-main" id="mk-next" style="margin-top:.6rem">${i + 1 < items.length ? 'Next question' : 'See my score'}</button>`;
+                if (ok) { got++; if (m.key) { mkMastered[m.key] = Date.now(); saveMastered(); updateMistakeBadge(); } }
+                qzEl('mk-fb').innerHTML = `<div class="qz-exp"><b>${ok ? 'Correct!' : 'Not quite.'}</b> ${ok ? '' : 'Answer: ' + escapeHTML(m.right) + '. '}${escapeHTML(m.exp || '')}</div>${ctx.audio ? `<details class="mk-pass"><summary>Show the transcript</summary><p>${escapeHTML(ctx.audio)}</p></details>` : ''}<button type="button" class="sx-btn sx-btn-main" id="mk-next" style="margin-top:.6rem">${i + 1 < items.length ? 'Next question' : 'See my score'}</button>`;
                 qzEl('mk-next').addEventListener('click', () => { i++; i < items.length ? show() : finish(); });
             };
             const show = () => {
@@ -4433,7 +4447,10 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
                 const body = choices
                     ? `<div class="qz-opts">${choices.map((c, k) => `<button type="button" class="qz-opt" data-v="${c}">${m.type === 'mcq' ? `<b>${c}.</b> ${escapeHTML(m.options[k])}` : c}</button>`).join('')}</div>`
                     : `<input type="text" id="mk-gap" class="sx-input" autocomplete="off" autocapitalize="off" placeholder="Type your answer"><button type="button" class="sx-btn sx-btn-main" id="mk-check" style="margin-top:.6rem">Check</button>`;
-                stage.innerHTML = `<div class="qz-prog"><i style="width:${Math.round(i / items.length * 100)}%"></i></div><p class="sx-note" style="text-align:left">Question ${i + 1} of ${items.length} &middot; ${m.kind === 'reading' ? 'Reading' : 'Listening'}</p><div class="qz-q">${escapeHTML(m.q)}</div>${body}<div id="mk-fb"></div>`;
+                const ctxHTML = ctx.passage ? `<details class="mk-pass" open><summary>Reading text</summary><p>${escapeHTML(ctx.passage)}</p></details>`
+                    : ctx.audio ? `<div class="dc-row" style="margin-bottom:.5rem"><button type="button" class="dc-btn dc-main" data-mk-play="1"><i class="fa-solid fa-volume-high"></i> Play</button><button type="button" class="dc-btn" data-mk-play="0.8"><i class="fa-solid fa-person-walking"></i> Slow</button><span class="dc-plays">Listen as many times as you like while you practise.</span></div>` : '';
+                stage.innerHTML = `<div class="qz-prog"><i style="width:${Math.round(i / items.length * 100)}%"></i></div>${i === 0 && ctx.tip ? `<div class="mk-tip"><b>Tip:</b> ${escapeHTML(ctx.tip)}</div>` : ''}<p class="sx-note" style="text-align:left">${ctx.drill ? 'Drill: ' + escapeHTML(ctx.label || '') + ' &middot; ' : ''}Question ${i + 1} of ${items.length} &middot; ${m.kind === 'reading' ? 'Reading' : 'Listening'}</p>${ctxHTML}<div class="qz-q">${escapeHTML(m.q)}</div>${body}<div id="mk-fb"></div>`;
+                stage.querySelectorAll('[data-mk-play]').forEach(b => b.addEventListener('click', () => { unlockHdAudio(); playListening(ctx.audio, parseFloat(b.dataset.mkPlay) || 1); }));
                 if (choices) stage.querySelectorAll('.qz-opt').forEach(b => b.addEventListener('click', () => {
                     stage.querySelectorAll('.qz-opt').forEach(x => { x.disabled = true; if (x.dataset.v.toUpperCase() === String(m.ans).toUpperCase()) x.classList.add('right'); });
                     if (b.dataset.v.toUpperCase() !== String(m.ans).toUpperCase()) b.classList.add('wrong');
@@ -4447,6 +4464,93 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             };
             show();
         }
+
+        // ---- What the mistakes show (no AI needed) ----
+        function mkLev(a, b) {
+            a = String(a).toLowerCase(); b = String(b).toLowerCase();
+            const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+            for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+            for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+            return dp[a.length][b.length];
+        }
+        function mkInsights(open) {
+            const out = [];
+            const tf = open.filter(m => m.type === 'tfng');
+            if (tf.length >= 2) {
+                const pairs = {};
+                tf.forEach(m => { if (m.yours !== '(no answer)') { const k = m.yours + '|' + m.right; pairs[k] = (pairs[k] || 0) + 1; } });
+                const top = Object.entries(pairs).sort((a, b) => b[1] - a[1])[0];
+                if (top && top[1] >= 2) {
+                    const [y, r] = top[0].split('|');
+                    out.push(`In True / False / Not Given you often answer <b>${escapeHTML(y)}</b> when the answer is <b>${escapeHTML(r)}</b> (${top[1]} times). ${r === 'Not Given' ? 'Not Given means the text does not say it at all. Do not use your own knowledge.' : r === 'False' ? 'False means the text says the opposite. Look for a word that changes the meaning.' : 'True means the text says the same thing in different words.'}`);
+                }
+            }
+            const gaps = open.filter(m => m.type === 'gap');
+            if (gaps.length >= 2) {
+                const blank = gaps.filter(m => m.yours === '(no answer)').length;
+                const slips = gaps.filter(m => m.yours !== '(no answer)' && mkLev(m.yours, m.right) <= 2).length;
+                if (slips >= 2) out.push(`<b>${slips}</b> of your ${gaps.length} gap-fill mistakes were tiny spelling or form slips (like a missing s). Check spelling and singular or plural before you move on.`);
+                if (blank >= 2) out.push(`<b>${blank}</b> gap-fill questions were left empty. A wrong answer loses nothing, so always write a guess.`);
+            }
+            const r = open.filter(m => m.kind === 'reading').length, l = open.filter(m => m.kind === 'listening').length;
+            if (r + l >= 4 && Math.max(r, l) / (r + l) >= 0.7) out.push(`Most of your open mistakes are in <b>${r > l ? 'Reading' : 'Listening'}</b> (${Math.max(r, l)} of ${r + l}). Spend your next practice there.`);
+            return out.slice(0, 3);
+        }
+
+        // ---- Fix my weakest skill: new AI questions of the type the student misses most ----
+        const mkDrillKey = () => 'IELTS_MKDRILL_' + (auth.currentUser?.uid || 'x');
+        const mkDrillHist = () => { try { const a = JSON.parse(localStorage.getItem(mkDrillKey()) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+        function mkTarget() {
+            const open = mkOpen().filter(m => m.type !== 'match' && (mkKind === 'all' || m.kind === mkKind) && (mkType === 'all' || m.type === mkType));
+            const g = {};
+            open.forEach(m => { const k = m.kind + ':' + m.type; (g[k] = g[k] || []).push(m); });
+            const best = Object.entries(g).sort((a, b) => b[1].length - a[1].length)[0];
+            if (!best) return null;
+            const [kind, type] = best[0].split(':');
+            return { kind, type, list: best[1] };
+        }
+        const MK_RULES = {
+            tfng: 'Statements for True / False / Not Given. "ans" must be exactly "True", "False" or "Not Given". Use all three answers at least once. Make at least two statements tricky: a Not Given that sounds true, and a False that changes one small word. No "options".',
+            mcq: 'Multiple choice with exactly 4 options in "options" (plain text, no letters in front). "ans" is one letter A, B, C or D. Make the wrong options tempting by reusing words from the text.',
+            gap: 'Sentence completion. Each "q" is a sentence from the text with ________ in place of the missing word(s). "ans" is ONE or TWO words copied exactly from the text, never more.'
+        };
+        async function mkDrill() {
+            const t = mkTarget(); if (!t) return;
+            if (aiBusyGuard()) return;
+            const stage = qzEl('mk-stage'), label = MK_TYPES[t.type] || t.type, listening = t.kind === 'listening', n = t.type === 'tfng' ? 6 : 5;
+            qzEl('mk-list').innerHTML = ''; qzEl('mk-actions').innerHTML = ''; qzEl('mk-filters').innerHTML = ''; const ins = qzEl('mk-insights'); if (ins) ins.innerHTML = '';
+            stage.innerHTML = '<p class="sx-hint" style="color:#fcd34d"><i class="fa-solid fa-spinner fa-spin"></i> Writing new practice questions for you...</p>';
+            const samples = pickN(t.list, 4).map(m => `- "${String(m.q).slice(0, 160)}" | the student answered: ${m.yours} | correct: ${m.right}`).join('\n');
+            const material = listening
+                ? 'a spoken monologue of 150 to 190 words (one speaker, natural spoken English, short sentences, numbers and dates written as words, no speaker labels)'
+                : 'an academic passage of 150 to 190 words';
+            const raw = await askIELTSAI(`A student keeps making mistakes on IELTS ${listening ? 'Listening' : 'Academic Reading'} "${MK_TYPES[t.type]}" questions. Some of their recent mistakes:\n${samples}\n\nWrite ${material} about ${pickN(FRESH_THEMES, 1)[0]} (a different topic from those mistakes), and ${n} NEW ${MK_TYPES[t.type]} questions on it that train exactly the skill the student is missing.\n${MK_RULES[t.type]}\nEach "exp" says in under 20 words where the answer is and why.\nAlso give "tip": the single best strategy for this question type, in one sentence of simple English.\nVariation code ${Math.random().toString(36).slice(2, 8)}.\nReturn JSON only: {"tip":"","text":"","questions":[{"q":"","options":["","","",""],"ans":"","exp":""}]}`, "You are an expert IELTS teacher. Output valid JSON only.", true, { maxTokens: 2400, budgetMs: 50000, requestMs: 45000, temperature: 0.9 });
+            const p = parseJSONSafely(raw);
+            const text = p && typeof p.text === 'string' ? p.text.trim() : '';
+            const qs = (p && Array.isArray(p.questions) ? p.questions : []).map(q => {
+                if (!q || typeof q.q !== 'string' || !q.q.trim()) return null;
+                const exp = String(q.exp || '').slice(0, 220), a = String(q.ans ?? '').trim();
+                if (t.type === 'tfng') { const l = a.toLowerCase(), ans = l.startsWith('t') ? 'True' : l.startsWith('f') ? 'False' : l.startsWith('n') ? 'Not Given' : null; return ans ? { type: 'tfng', q: q.q.trim(), ans, exp } : null; }
+                if (t.type === 'mcq') {
+                    const opts = Array.isArray(q.options) ? q.options.map(o => String(o).replace(/^[A-D][.)]\s*/, '').trim()) : [];
+                    if (opts.length !== 4 || opts.some(o => !o)) return null;
+                    const idx = /^[A-D]$/i.test(a) ? a.toUpperCase().charCodeAt(0) - 65 : opts.findIndex(o => o.toLowerCase() === a.toLowerCase());
+                    return idx >= 0 ? { type: 'mcq', q: q.q.trim(), options: opts, ans: 'ABCD'[idx], exp } : null;
+                }
+                if (!a || a.split(/\s+/).length > 3 || a.length > 30) return null;
+                return { type: 'gap', q: /_{3,}/.test(q.q) ? q.q.trim() : q.q.trim() + ' ________', ans: a, alt: [], exp };
+            }).filter(Boolean);
+            if (!raw || text.split(/\s+/).length < 50 || qs.length < 4) {
+                stage.innerHTML = `${raw ? '<p class="text-amber-300">⚠ The AI answer was not in the right shape. Please try again.</p>' : aiFailHTML()}<div class="sx-row"><button type="button" class="sx-btn sx-btn-main" id="mk-again">Try again</button><button type="button" class="sx-btn sx-btn-ghost" id="mk-back">Back to my notebook</button></div>`;
+                qzEl('mk-again').addEventListener('click', mkDrill); qzEl('mk-back').addEventListener('click', renderMistakes); return;
+            }
+            const items = qs.slice(0, n).map(q => ({ ...q, kind: t.kind, key: null, right: mkAnswerText(q, q.ans), yours: '' }));
+            mkRun(items, {
+                drill: true, label: `${label} (${listening ? 'Listening' : 'Reading'})`, kind: t.kind, type: t.type, tip: typeof p.tip === 'string' ? p.tip.slice(0, 220) : '', again: mkDrill,
+                ...(listening ? { audio: text } : { passage: text }),
+                onDone: (got, total) => { try { const h = mkDrillHist(); h.push({ t: Date.now(), kind: t.kind, type: t.type, got, n: total }); localStorage.setItem(mkDrillKey(), JSON.stringify(h.slice(-30))); } catch (e) {} }
+            });
+        }
         qzEl('view-mistakes')?.addEventListener('click', (e) => {
             const f = e.target.closest('[data-mkkind],[data-mktype]');
             if (f) { if (f.dataset.mkkind) mkKind = f.dataset.mkkind; if (f.dataset.mktype) mkType = f.dataset.mktype; renderMistakes(); return; }
@@ -4454,6 +4558,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
                 const pool = mkOpen().filter(m => m.type !== 'match' && (mkKind === 'all' || m.kind === mkKind) && (mkType === 'all' || m.type === mkType));
                 mkRun(qzShuffle(pool).slice(0, 10)); return;
             }
+            if (e.target.closest('#mk-drill')) { mkDrill(); return; }
             if (e.target.closest('#mk-bring')) { mkMastered = {}; saveMastered(); renderMistakes(); return; }
             const d = e.target.closest('[data-mk-done]');
             if (d) { mkMastered[d.dataset.mkDone] = Date.now(); saveMastered(); renderMistakes(); return; }
