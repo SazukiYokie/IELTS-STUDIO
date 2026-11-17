@@ -696,3 +696,22 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .srs-chip.due { background: rgba(251,191,36,0.2); color: #fcd34d; }
 .wr-save { display: inline-block; margin-top: 0.35rem; background: none; border: 1px solid rgba(94,234,212,0.4); color: #5eead4; border-radius: 999px; font-size: 0.74rem; font-weight: 700; padding: 0.2rem 0.7rem; cursor: pointer; }
 .wr-save:disabled { opacity: 0.7; cursor: default; }
+
+/* ---- AI Tutor: microphone and listen ---- */
+.ai-mic { width: 2.75rem; height: 2.75rem; border-radius: 0.8rem; background: #1e293b; border: 1px solid rgba(148,163,184,0.3); color: #f472b6; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; font-size: 1.05rem; padding: 0; }
+.ai-mic.rec { background: #e11d48; color: #fff; border-color: transparent; animation: aiRec 1.3s infinite; }
+.ai-mic.busy { color: #fcd34d; cursor: progress; }
+.ai-mic-status { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.8rem; background: rgba(225,29,72,0.14); border-top: 1px solid rgba(225,29,72,0.4); font-size: 0.82rem; color: #fecdd3; }
+.ai-mic-status > span:not(.ai-rec-dot) { flex: 1; line-height: 1.35; }
+.ai-mic-status b { color: #fff; font-variant-numeric: tabular-nums; }
+.ai-rec-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: #fb7185; flex: none; animation: aiDot 1s infinite; }
+.ai-auto { display: flex; align-items: center; gap: 0.45rem; padding: 0.1rem 0.8rem 0.6rem; font-size: 0.72rem; line-height: 1.3; color: #94a3b8; background: rgba(2,6,23,0.6); cursor: pointer; }
+.ai-auto input { width: 1rem; height: 1rem; accent-color: #8b5cf6; flex: none; }
+.ai-send.ready { animation: aiReady 1.1s infinite; }
+.ai-listen { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.55rem; background: rgba(148,163,184,0.14); border: 1px solid rgba(148,163,184,0.3); color: #cbd5e1; border-radius: 999px; font-size: 0.76rem; font-weight: 700; padding: 0.3rem 0.8rem; cursor: pointer; }
+.ai-listen.playing { background: rgba(139,92,246,0.25); border-color: #8b5cf6; color: #fff; }
+@keyframes aiRec { 0% { box-shadow: 0 0 0 0 rgba(225,29,72,0.6); } 70% { box-shadow: 0 0 0 12px rgba(225,29,72,0); } 100% { box-shadow: 0 0 0 0 rgba(225,29,72,0); } }
+@keyframes aiDot { 50% { opacity: 0.3; } }
+@keyframes aiReady { 50% { box-shadow: 0 0 0 7px rgba(139,92,246,0.35); } }
+@media (prefers-reduced-motion: reduce) { .ai-mic.rec, .ai-rec-dot, .ai-send.ready { animation: none; } }
+@media (max-width: 400px) { .ai-input-row { gap: 0.4rem; padding: 0.55rem; } .ai-file, .ai-mic { width: 2.45rem; height: 2.6rem; } .ai-send { width: 2.6rem; height: 2.6rem; } .ai-input { padding: 0.6rem 0.7rem; } }

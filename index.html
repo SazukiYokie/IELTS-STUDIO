@@ -40,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261117b">
+    <link rel="stylesheet" href="style.css?v=20261117d">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -345,6 +345,7 @@
                             <span id="chat-attachment-info" class="truncate"></span>
                             <button type="button" id="btn-remove-chat-attachment" aria-label="Remove file"><i class="fa-solid fa-xmark"></i></button>
                         </div>
+                        <div id="ai-mic-status" class="ai-mic-status hide" role="status" aria-live="polite"></div>
                         <div class="ai-input-row">
                             <label class="ai-file" title="Attach a file" aria-label="Attach a file"><i class="fa-solid fa-paperclip"></i>
                                 <input type="file" id="chat-file-upload" accept=".pdf,.txt,.md,.csv,.docx,.html" class="hide">
@@ -352,9 +353,11 @@
                             <label class="ai-file" title="Add a photo" aria-label="Add a photo"><i class="fa-solid fa-image"></i>
                                 <input type="file" id="chat-image-upload" accept="image/*" multiple class="hide">
                             </label>
+                            <button type="button" id="ai-mic-btn" class="ai-mic" aria-label="Speak your question" aria-pressed="false" title="Speak instead of typing"><i class="fa-solid fa-microphone"></i></button>
                             <input type="text" id="ai-input" class="ai-input" placeholder="Type your question..." autocomplete="off">
                             <button type="button" id="ai-send-btn" class="ai-send" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
                         </div>
+                        <label class="ai-auto"><input type="checkbox" id="ai-mic-auto"><span>Send my question automatically after I speak</span></label>
                     </div>
                   </div>
                 </div>
@@ -1232,6 +1235,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
 
         function endSession() {
             sessionUnsubs.forEach(fn => { try { fn(); } catch (e) {} });
+            try { tmCancel(); } catch (e) {}
             try { vocabBank = {}; vocabMeta = {}; vocabLoadedFor = ''; srs = null; vocabWords = []; srsBadge(); const sc = document.getElementById('srs-card'); if (sc) sc.innerHTML = ''; } catch (e) {}
             sessionUnsubs = [];
             sessionUid = null;
@@ -1791,7 +1795,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             const reply = aiReply || ("⚠ " + aiProblemText() + " Please send your message again.");
             document.getElementById(loadId)?.remove();
 
-            chatBox.innerHTML += `<div class="ai-msg"><div class="ai-av"><i class="fa-solid fa-robot"></i></div><div class="ai-bub ai-prose">${formatAIMarkdown(reply || "Please try again.")}</div></div>`;
+            chatBox.innerHTML += `<div class="ai-msg"><div class="ai-av"><i class="fa-solid fa-robot"></i></div><div class="ai-bub ai-prose">${formatAIMarkdown(reply || "Please try again.")}${aiReply ? '<button type="button" class="ai-listen" data-ai-listen="1"><i class="fa-solid fa-volume-high"></i> Listen</button>' : ''}</div></div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
@@ -1799,6 +1803,103 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
         document.getElementById('ai-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } });
         document.querySelectorAll('.ai-quick-btn').forEach(b => b.addEventListener('click', () => sendChat(b.getAttribute('data-prompt'))));
         document.getElementById('btn-clear-chat')?.addEventListener('click', () => { document.getElementById('ai-chat-box').innerHTML = ''; chatHistory = []; });
+
+        // ===== AI Tutor microphone: speak instead of typing. Whisper turns the voice into text, it lands in the box, you press Send =====
+        const TM_PROMPT = 'IELTS, band score, Task 1, Task 2, writing, speaking, vocabulary, grammar, collocation.';
+        const tm = { state: 'idle', rec: null, stream: null, chunks: [], t0: 0, tick: 0, stopT: 0, gen: 0 };
+        const tmEl = (id) => document.getElementById(id);
+        function tmPaint() {
+            const btn = tmEl('ai-mic-btn'), st = tmEl('ai-mic-status'), inp = tmEl('ai-input');
+            if (!btn) return;
+            btn.classList.toggle('rec', tm.state === 'rec'); btn.classList.toggle('busy', tm.state === 'busy');
+            btn.innerHTML = tm.state === 'busy' ? '<i class="fa-solid fa-spinner fa-spin"></i>' : tm.state === 'rec' ? '<i class="fa-solid fa-stop"></i>' : '<i class="fa-solid fa-microphone"></i>';
+            btn.setAttribute('aria-label', tm.state === 'rec' ? 'Stop and write my words' : 'Speak your question');
+            btn.setAttribute('aria-pressed', String(tm.state === 'rec'));
+            btn.title = tm.state === 'rec' ? 'Tap to finish' : 'Speak instead of typing';
+            if (inp) inp.placeholder = tm.state === 'rec' ? 'Listening...' : 'Type your question...';
+            if (!st) return;
+            if (tm.state === 'idle') { st.classList.add('hide'); st.innerHTML = ''; return; }
+            st.classList.remove('hide');
+            st.innerHTML = tm.state === 'rec'
+                ? '<span class="ai-rec-dot"></span><span>Listening... <b id="ai-mic-time">0:00</b> Tap the red button when you finish.</span><button type="button" id="ai-mic-cancel" class="sx-link">Cancel</button>'
+                : '<i class="fa-solid fa-spinner fa-spin"></i><span>Turning your voice into text...</span>';
+        }
+        function tmCleanup() { clearInterval(tm.tick); clearTimeout(tm.stopT); try { tm.stream?.getTracks().forEach(t => t.stop()); } catch (e) {} tm.stream = null; }
+        async function tmStart() {
+            if (tm.state === 'busy') return showToast("Still turning your last recording into text...", "info");
+            if (isRecordingNow()) return showToast("Finish the other recording first (Speaking test).", "info");
+            if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return showToast("This browser can't record audio. Type your question, or try Chrome.", "error");
+            if (aiBusyGuard()) return;
+            try { tm.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+            catch (e) { return showToast("Allow the microphone in your browser, then tap the mic again.", "error"); }
+            const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => MediaRecorder.isTypeSupported?.(m));
+            try { tm.rec = mime ? new MediaRecorder(tm.stream, { mimeType: mime }) : new MediaRecorder(tm.stream); }
+            catch (e) { tmCleanup(); return showToast("This browser can't record audio. Type your question, or try Chrome.", "error"); }
+            const g = ++tm.gen;
+            tm.chunks = []; tm.t0 = Date.now();
+            tm.rec.ondataavailable = (e) => { if (e.data && e.data.size) tm.chunks.push(e.data); };
+            tm.rec.onstop = () => tmDone(g);
+            tm.rec.start();
+            tm.state = 'rec'; tmPaint();
+            tm.tick = setInterval(() => { const s = Math.floor((Date.now() - tm.t0) / 1000), el = tmEl('ai-mic-time'); if (el) el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }, 250);
+            tm.stopT = setTimeout(() => { if (tm.state === 'rec') tmStop(); }, 120000);   // two minutes is plenty for a question
+        }
+        function tmStop() { if (tm.state !== 'rec') return; clearInterval(tm.tick); clearTimeout(tm.stopT); try { tm.rec.stop(); } catch (e) { tmCancel(); } }
+        function tmCancel() {
+            if (tm.state === 'idle') return;
+            tm.gen++;                                  // anything still being processed is ignored
+            clearInterval(tm.tick); clearTimeout(tm.stopT);
+            try { if (tm.rec && tm.rec.state === 'recording') tm.rec.stop(); } catch (e) {}
+            tmCleanup(); tm.state = 'idle'; tmPaint();
+        }
+        async function tmDone(g) {
+            tmCleanup();
+            if (g !== tm.gen) return;
+            const type = tm.rec?.mimeType || 'audio/webm', blob = new Blob(tm.chunks, { type });
+            if (blob.size < 2500) { tm.state = 'idle'; tmPaint(); return showToast("That was too short. Tap the mic and speak a little longer.", "error"); }
+            tm.state = 'busy'; tmPaint();
+            const ext = /mp4/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : 'webm';
+            try {
+                // no language is forced, so a question in English or in Khmer both work
+                const { text } = await transcribeBlob(blob, ext, { lang: null, timed: false, prompt: TM_PROMPT });
+                if (g !== tm.gen) return;
+                tm.state = 'idle'; tmPaint();
+                const clean = String(text || '').replace(/\s+/g, ' ').trim();
+                if (!clean || clean.startsWith(TM_PROMPT.slice(0, 30))) return showToast("No speech was heard. Check your microphone and try again.", "error");
+                const inp = tmEl('ai-input'); if (!inp) return;
+                inp.value = inp.value.trim() ? inp.value.trim() + ' ' + clean : clean;
+                inp.dispatchEvent(new Event('input', { bubbles: true }));
+                if (tmEl('ai-mic-auto')?.checked) sendChat();
+                else { tmEl('ai-send-btn')?.classList.add('ready'); if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches)) inp.focus(); }
+            } catch (e) {
+                if (g !== tm.gen) return;
+                tm.state = 'idle'; tmPaint();
+                showToast("Could not turn your voice into text (" + (e && e.message ? e.message : 'unknown problem') + "). Try again, or type your question.", "error");
+            }
+        }
+        tmEl('ai-mic-btn')?.addEventListener('click', () => { if (tm.state === 'rec') tmStop(); else if (tm.state === 'idle') tmStart(); else showToast("Still turning your last recording into text...", "info"); });
+        tmEl('ai-mic-status')?.addEventListener('click', (e) => { if (e.target.closest('#ai-mic-cancel')) tmCancel(); });
+        tmEl('ai-send-btn')?.addEventListener('click', () => tmEl('ai-send-btn').classList.remove('ready'));
+        tmEl('ai-input')?.addEventListener('input', (e) => { if (!e.target.value) tmEl('ai-send-btn')?.classList.remove('ready'); });
+        try { const a = tmEl('ai-mic-auto'); if (a) { a.checked = localStorage.getItem('IELTS_MIC_AUTOSEND') === '1'; a.addEventListener('change', () => { try { localStorage.setItem('IELTS_MIC_AUTOSEND', a.checked ? '1' : '0'); } catch (e) {} }); } } catch (e) {}
+        // leaving the page or signing out never leaves the microphone open
+        document.addEventListener('click', (e) => { if (tm.state !== 'idle' && e.target.closest('.nav-btn')) tmCancel(); }, true);
+        // listen to a tutor answer (the first part, so it stays quick)
+        document.getElementById('ai-chat-box')?.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-ai-listen]'); if (!b) return;
+            const label = '<i class="fa-solid fa-volume-high"></i> Listen';
+            const reset = () => document.querySelectorAll('#ai-chat-box .ai-listen').forEach(x => { x.classList.remove('playing'); x.innerHTML = label; });
+            if (b.classList.contains('playing')) { stopListening(); reset(); return; }
+            const clone = b.closest('.ai-bub').cloneNode(true);
+            clone.querySelectorAll('.ai-listen, table, pre, code').forEach(x => x.remove());
+            let txt = clone.textContent.replace(/\s+/g, ' ').trim();
+            if (txt.length > 700) { const cut = txt.slice(0, 700), at = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! ')); txt = at > 250 ? cut.slice(0, at + 1) : cut; }
+            if (!txt) return;
+            stopListening(); reset(); unlockHdAudio();
+            b.classList.add('playing'); b.innerHTML = '<i class="fa-solid fa-stop"></i> Stop';
+            playListening(txt, 1, () => { b.classList.remove('playing'); b.innerHTML = label; });
+        });
+
 
         // =====================================================================
         // EXAM ENGINE: Reading and Listening tests written live by the AI (no stored papers)
@@ -2433,7 +2534,7 @@ Return ONLY valid JSON in this shape:
             const out = []; let cur = '';
             const push = (x) => { if (x.trim()) out.push(x.trim()); };
             parts.forEach(p => {
-                if (p.length > max) { push(cur); cur = ''; p.split(/(?<=,)\s+/).forEach(piece => { if ((cur + piece).length > max && cur) { push(cur); cur = piece; } else cur += (cur ? ' ' : '') + piece; }); }
+                if (p.length > max) { push(cur); cur = ''; p.replace(/,\s+/g, ',\u0001').split('\u0001').forEach(piece => { if ((cur + piece).length > max && cur) { push(cur); cur = piece; } else cur += (cur ? ' ' : '') + piece; }); }
                 else if ((cur + p).length > max && cur) { push(cur); cur = p; } else cur += p;
             });
             push(cur);
@@ -2552,9 +2653,10 @@ Return ONLY valid JSON in this shape:
         // numbers are easier to hear when read digit by digit: 0412 345 678 -> 0 4 1 2, 3 4 5, 6 7 8
         function speakable(t) {
             const digits = (g) => g.split('').join(' ');
-            return String(t).replace(/(?<![\d.,£$€])\d{2,5}(?:[ -]\d{2,5}){1,4}(?![\d.,%])|(?<![\d.,£$€])\d{7,}(?![\d.,%])/g, (m) => {
-                const groups = m.split(/[ -]/);
-                return groups.join('').length >= 7 ? groups.map(digits).join(', ') : m;
+            // (no look-behind in the pattern: older iPhones cannot even load a page that contains one)
+            return String(t).replace(/(^|[^\d.,£$€])(\d{2,5}(?:[ -]\d{2,5}){1,4}|\d{7,})(?![\d.,%])/g, (m, pre, num) => {
+                const groups = num.split(/[ -]/);
+                return pre + (groups.join('').length >= 7 ? groups.map(digits).join(', ') : num);
             });
         }
         // the recording cut into sentences with a natural pause before each: longer when the speaker changes
@@ -3741,19 +3843,20 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
         }
 
         // Returns { text, words }. words (with times) is only there when Whisper could give it; the text always works.
-        async function transcribeBlob(blob, ext) {
+        async function transcribeBlob(blob, ext, opts = {}) {
+            const lang = opts.lang === undefined ? 'en' : opts.lang;   // null = let Whisper detect the language
             await ensureAIModels();
             if (!whisperModels.length) throw new Error("voice-to-text isn't available on this AI account");
             let lastErr;
             for (const model of whisperModels.slice(0, 2)) {
-                for (const timed of [true, false]) {
+                for (const timed of (opts.timed === false ? [false] : [true, false])) {
                     try {
                         const fd = new FormData();
-                        fd.append('file', blob, `speech.${ext}`); fd.append('model', model); fd.append('language', 'en'); fd.append('temperature', '0');
+                        fd.append('file', blob, `speech.${ext}`); fd.append('model', model); if (lang) fd.append('language', lang); fd.append('temperature', '0');
                         if (timed) {
                             fd.append('response_format', 'verbose_json'); fd.append('timestamp_granularities[]', 'word');
                             fd.append('prompt', 'Umm, let me think, like, hmm... Okay, so, uh, I think, you know, it is, er, quite interesting.');
-                        } else fd.append('response_format', 'json');
+                        } else { fd.append('response_format', 'json'); if (opts.prompt) fd.append('prompt', opts.prompt); }
                         const r = await aiRequest("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { "Authorization": `Bearer ${getBuiltInKey()}` }, body: fd }, 45000);
                         if (r.ok) {
                             let text = String(r.body?.text || '').trim();
@@ -3777,6 +3880,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
         document.getElementById('btn-record')?.addEventListener('click', async () => {
             if (mediaRec && mediaRec.state === 'recording') return stopRecording();
             if (dictActive) return showToast("Stop the live dictation first.", "info");
+            if (tm.state !== 'idle') return showToast("Finish the AI Tutor microphone first.", "info");
             if (transcribing) return showToast("Still turning your last recording into text...", "info");
             if (!activeSpeakingTest) return showToast("Press New Speaking Test first!", "error");
             if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return showToast("This browser can't record audio. Type your answer, or try Chrome.", "error");
