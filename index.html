@@ -40,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261117a">
+    <link rel="stylesheet" href="style.css?v=20261117b">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -127,7 +127,7 @@
                     <button type="button" data-target="reading" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-book-open text-emerald-400 w-5"></i>Reading</button>
                     <button type="button" data-target="writing" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-pen-nib text-amber-400 w-5"></i>Writing</button>
                     <button type="button" data-target="speaking" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-microphone text-rose-400 w-5"></i>Speaking</button>
-                    <button type="button" data-target="vocab" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-book-bookmark text-teal-400 w-5"></i>Vocabulary</button>
+                    <button type="button" data-target="vocab" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-book-bookmark text-teal-400 w-5"></i>Vocabulary<span id="vocab-badge" class="mk-badge hide">0</span></button>
                     <button type="button" data-target="grammar" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-spell-check text-violet-400 w-5"></i>Grammar</button>
                     <button type="button" data-target="mistakes" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-triangle-exclamation text-rose-400 w-5"></i>Mistake Notebook<span id="mk-badge" class="mk-badge hide">0</span></button>
                     <button type="button" data-target="report" class="nav-btn text-slate-300 hover:bg-slate-800/60 w-full flex items-center gap-3 p-2.5 rounded-xl font-medium text-xs sm:text-sm transition"><i class="fa-solid fa-file-lines text-sky-400 w-5"></i>Progress Report</button>
@@ -210,7 +210,7 @@
                     </div>
 
                     <div class="db-quick">
-                        <button type="button" class="db-q" onclick="document.querySelector('[data-target=vocab]').click()"><span class="db-ic" style="background:rgba(20,184,166,.2);color:#2dd4bf"><i class="fa-solid fa-book-bookmark"></i></span><span>Vocabulary<small>New words and quizzes</small></span></button>
+                        <button type="button" class="db-q" onclick="document.querySelector('[data-target=vocab]').click()"><span class="db-ic" style="background:rgba(20,184,166,.2);color:#2dd4bf"><i class="fa-solid fa-book-bookmark"></i></span><span>Vocabulary<small id="db-vocab-sub">New words and quizzes</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=grammar]').click()"><span class="db-ic" style="background:rgba(139,92,246,.2);color:#a78bfa"><i class="fa-solid fa-spell-check"></i></span><span>Grammar<small>Short drills</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=mock]').click()"><span class="db-ic" style="background:rgba(245,158,11,.2);color:#fbbf24"><i class="fa-solid fa-flag-checkered"></i></span><span>Full Mock Test<small>All 4 skills, overall band</small></span></button>
                         <button type="button" class="db-q" onclick="document.querySelector('[data-target=mistakes]').click()"><span class="db-ic" style="background:rgba(244,63,94,.2);color:#fb7185"><i class="fa-solid fa-triangle-exclamation"></i></span><span>Mistake Notebook<small>Retry what you missed</small></span></button>
@@ -623,6 +623,7 @@
                 <div id="view-vocab" class="view-section hide">
                   <div class="sx sx-v">
                     <div class="sx-head"><div class="sx-head-ic"><i class="fa-solid fa-book-bookmark"></i></div><div><h2>Vocabulary</h2><p>Topic words that raise your band, with Khmer help</p></div></div>
+                    <div id="srs-card" class="srs-card"></div>
                     <div class="sx-label">Choose a topic</div>
                     <div id="vocab-topics" class="qz-chips"></div>
                     <button type="button" id="btn-vocab-new" class="sx-btn sx-btn-main"><i class="fa-solid fa-wand-magic-sparkles"></i>Get 8 new words</button>
@@ -1231,6 +1232,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
 
         function endSession() {
             sessionUnsubs.forEach(fn => { try { fn(); } catch (e) {} });
+            try { vocabBank = {}; vocabMeta = {}; vocabLoadedFor = ''; srs = null; vocabWords = []; srsBadge(); const sc = document.getElementById('srs-card'); if (sc) sc.innerHTML = ''; } catch (e) {}
             sessionUnsubs = [];
             sessionUid = null;
             lastPublicSig = "";
@@ -1459,6 +1461,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             // long-press shortcuts of the installed app open a page directly (for example index.html#listening)
             try { const h = location.hash.slice(1); if (/^(mock|reading|listening|writing|speaking|vocab|grammar|ai|mistakes)$/.test(h)) { document.querySelector(`.nav-btn[data-target="${h}"]`)?.click(); history.replaceState(null, '', location.pathname + location.search); } } catch (e) {}
             installTip();
+            loadVocabBank();
 
             // Every listener below is stored so it can be switched off when this account signs out
             const guard = (fn) => (...args) => { if (sessionUid === uid) fn(...args); };
@@ -3294,11 +3297,11 @@ After the answer add "Why this is Band 8" with 4 short bullet points (structure,
             const d = wrDiff(orig, r.rewrite);
             const left = d ? wrMark(d.left, 'del') : escapeHTML(orig).replace(/\n+/g, '<br><br>');
             const right = d ? wrMark(d.right, 'ins') : escapeHTML(r.rewrite).replace(/\n+/g, '<br><br>');
-            const changes = (r.changes || []).slice(0, 6).map(c => `<li><s>${escapeHTML(c.from)}</s> <i class="fa-solid fa-arrow-right"></i> <b>${escapeHTML(c.to)}</b><span>${escapeHTML(c.why)}</span></li>`).join('');
+            const changes = (r.changes || []).slice(0, 6).map((c, i) => `<li><s>${escapeHTML(c.from)}</s> <i class="fa-solid fa-arrow-right"></i> <b>${escapeHTML(c.to)}</b><span>${escapeHTML(c.why)}</span><button type="button" class="wr-save" data-wr-save="${i}">☆ Save to word review</button></li>`).join('');
             return `<h3 class="sx-result-h">Your answer and a Band 7 version</h3>
                 <p class="wr-legend"><del>Removed or changed</del> <ins>New wording</ins> · Same ideas, same paragraphs, better language.</p>
                 <div class="wr-grid"><div class="wr-col"><h4>Your answer</h4><p>${left}</p></div><div class="wr-col wr-new"><h4>Band 7 version</h4><p>${right}</p></div></div>
-                ${changes ? `<h4 class="wr-h">The ${(r.changes || []).slice(0, 6).length} upgrades that matter most</h4><ul class="wr-list">${changes}</ul>` : ''}
+                ${changes ? `<h4 class="wr-h">The ${(r.changes || []).slice(0, 6).length} upgrades that matter most</h4><ul class="wr-list">${changes}</ul><button type="button" class="sx-btn sx-btn-ghost" data-wr-saveall="1" style="margin-top:.6rem">☆ Save all to my word review</button>` : ''}
                 <p class="wr-note">An AI-written example to learn from, not the only correct version. Try rewriting your own answer using these ideas.</p>`;
         }
         async function writingRewrite() {
@@ -4191,27 +4194,147 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
 
         // ----- Vocabulary -----
         let vocabTopic = VOCAB_TOPICS[0], vocabWords = [], vocabBank = {}, vocabLoadedFor = '';
+        const vbStamp = (e) => (e && (e.upd || e.ts)) || 0;
+        function vbMerge(a, b) { const out = { ...a }; for (const k of Object.keys(b || {})) if (!out[k] || vbStamp(b[k]) >= vbStamp(out[k])) out[k] = b[k]; return out; }
         const vocabKey = (uid) => `IELTS_VOCAB_${uid}`;
         async function loadVocabBank() {
             const u = auth.currentUser; if (!u || vocabLoadedFor === u.uid) return;
-            vocabLoadedFor = u.uid; vocabBank = {};
+            vocabLoadedFor = u.uid; vocabBank = {}; vocabMeta = {};
             try { vocabBank = JSON.parse(localStorage.getItem(vocabKey(u.uid)) || '{}') || {}; } catch (e) {}
+            try { vocabMeta = JSON.parse(localStorage.getItem(vocabKey(u.uid) + '_META') || '{}') || {}; } catch (e) {}
             renderVocabBank();
-            try { const snap = await getDoc(doc(db, 'users', u.uid, 'vocab', 'bank')); if (snap.exists() && snap.data().words) { vocabBank = { ...vocabBank, ...snap.data().words }; renderVocabBank(); } } catch (e) {}
+            try {
+                const snap = await getDoc(doc(db, 'users', u.uid, 'vocab', 'bank'));
+                if (snap.exists() && auth.currentUser?.uid === u.uid) {
+                    const d = snap.data();
+                    if (d.words) vocabBank = vbMerge(vocabBank, d.words);
+                    if (d.meta && (d.meta.last || '') >= (vocabMeta.last || '')) vocabMeta = { ...vocabMeta, ...d.meta };
+                    renderVocabBank();
+                }
+            } catch (e) {}
         }
         async function saveVocabBank() {
             const u = auth.currentUser; if (!u) return;
-            try { localStorage.setItem(vocabKey(u.uid), JSON.stringify(vocabBank)); } catch (e) {}
-            try { await setDoc(doc(db, 'users', u.uid, 'vocab', 'bank'), { words: vocabBank, updatedAt: Date.now() }); } catch (e) {}
+            try { localStorage.setItem(vocabKey(u.uid), JSON.stringify(vocabBank)); localStorage.setItem(vocabKey(u.uid) + '_META', JSON.stringify(vocabMeta)); } catch (e) {}
+            try { await setDoc(doc(db, 'users', u.uid, 'vocab', 'bank'), { words: vocabBank, meta: vocabMeta, updatedAt: Date.now() }); } catch (e) {}
         }
         function renderVocabBank() {
             const keys = Object.keys(vocabBank);
             const c = qzEl('vocab-count'); if (c) c.textContent = keys.length;
+            srsPaint();
             const box = qzEl('vocab-bank'); if (!box) return;
-            box.innerHTML = keys.length ? keys.map(k => `<div class="qz-bank"><span><b>${escapeHTML(k)}</b> <span class="sx-hint" style="color:#94a3b8">${escapeHTML(vocabBank[k].m || '')}</span></span><button type="button" class="sx-iconbtn" data-rm="${escapeHTML(k)}" aria-label="Remove ${escapeHTML(k)}"><i class="fa-solid fa-xmark"></i></button></div>`).join('') + `<button type="button" class="sx-btn sx-btn-ghost" id="btn-bank-quiz" ${keys.length < 4 ? 'disabled' : ''}>Quiz me on my saved words${keys.length < 4 ? ' (save 4 first)' : ''}</button>` : '<p class="sx-hint" style="color:#94a3b8">Tap "Save word" on a card to build your own word bank.</p>';
+            box.innerHTML = keys.length ? keys.map(k => `<div class="qz-bank"><span><b>${escapeHTML(k)}</b> <span class="sx-hint" style="color:#94a3b8">${escapeHTML(vocabBank[k].m || '')}</span> <span class="srs-chip${srsIsDue(vocabBank[k]) ? ' due' : ''}">${srsIsDue(vocabBank[k]) ? 'due' : escapeHTML(srsIn(vocabBank[k].due))}</span></span><button type="button" class="sx-iconbtn" data-rm="${escapeHTML(k)}" aria-label="Remove ${escapeHTML(k)}"><i class="fa-solid fa-xmark"></i></button></div>`).join('') + `<button type="button" class="sx-btn sx-btn-ghost" id="btn-bank-quiz" ${keys.length < 4 ? 'disabled' : ''}>Quiz me on my saved words${keys.length < 4 ? ' (save 4 first)' : ''}</button>` : '<p class="sx-hint" style="color:#94a3b8">Tap "Save word" on a card to build your own word bank.</p>';
             box.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => { delete vocabBank[b.dataset.rm]; saveVocabBank(); renderVocabBank(); }));
             qzEl('btn-bank-quiz')?.addEventListener('click', () => { document.querySelector('#view-vocab .sx-fold')?.removeAttribute('open'); vocabQuiz(keys.map(k => ({ word: k, meaning: vocabBank[k].m, example: vocabBank[k].ex || '' }))); });
         }
+        // ===== Spaced review of saved words (Leitner boxes): a word comes back just before you would forget it =====
+        let vocabMeta = {}, srs = null;
+        const SRS_DAYS = [0, 1, 3, 7, 14, 30];   // wait after landing in box 0..5 (box 0 = 10 minutes)
+        const srsWait = (box) => box === 0 ? 10 * 60000 : SRS_DAYS[Math.min(5, box)] * 86400000;
+        const srsLabel = (box) => box === 0 ? '10 min' : SRS_DAYS[box] === 1 ? '1 day' : SRS_DAYS[box] === 14 ? '2 weeks' : SRS_DAYS[box] === 30 ? '1 month' : SRS_DAYS[box] + ' days';
+        const srsNew = (extra) => { const n = Date.now(); return { ...extra, ts: n, box: 0, due: n, reps: 0, lapses: 0, upd: n }; };
+        const srsBox = (e) => Math.max(0, Math.min(5, Number.isInteger(e?.box) ? e.box : 0));
+        const srsIsDue = (e) => (typeof e?.due === 'number' ? e.due : 0) <= Date.now();
+        const srsNext = (e, rating) => rating === 'again' ? 0 : Math.min(5, srsBox(e) + (rating === 'easy' ? 2 : 1));
+        const srsDay = (offset = 0) => new Date(Date.now() - offset * 864e5).toLocaleDateString('en-CA');
+        const srsDueList = () => Object.keys(vocabBank).filter(k => srsIsDue(vocabBank[k])).sort((a, b) => srsBox(vocabBank[a]) - srsBox(vocabBank[b]) || (vocabBank[a].due || 0) - (vocabBank[b].due || 0));
+        const srsStreak = () => (vocabMeta.last === srsDay() || vocabMeta.last === srsDay(1)) ? (vocabMeta.streak || 0) : 0;
+        function srsIn(ts) {
+            const m = Math.max(1, Math.round((ts - Date.now()) / 60000));
+            if (m < 60) return `in ${m} min`;
+            const h = Math.round(m / 60); if (h < 24) return `in ${h} hour${h === 1 ? '' : 's'}`;
+            const d = Math.round(h / 24); return d === 1 ? 'tomorrow' : `in ${d} days`;
+        }
+        function srsRate(key, rating) {
+            const e = vocabBank[key]; if (!e) return;
+            const nb = srsNext(e, rating);
+            vocabBank[key] = { ...e, box: nb, due: Date.now() + srsWait(nb), reps: (e.reps || 0) + 1, lapses: (e.lapses || 0) + (rating === 'again' ? 1 : 0), upd: Date.now() };
+        }
+        function srsTouchStreak() {
+            if (vocabMeta.last === srsDay()) return;
+            const n = vocabMeta.last === srsDay(1) ? (vocabMeta.streak || 0) + 1 : 1;
+            vocabMeta = { last: srsDay(), streak: n, best: Math.max(vocabMeta.best || 0, n) };
+        }
+        function srsBadge() {
+            const n = srsDueList().length, b = qzEl('vocab-badge');
+            if (b) { b.textContent = n > 99 ? '99+' : n; b.classList.toggle('hide', n === 0); }
+            const s = qzEl('db-vocab-sub'); if (s) s.textContent = n ? `${n} word${n === 1 ? '' : 's'} due for review` : 'New words and quizzes';
+        }
+        function srsPaint() {
+            srsBadge();
+            const card = qzEl('srs-card'); if (!card || srs) return;
+            const keys = Object.keys(vocabBank), due = srsDueList(), streak = srsStreak();
+            if (!keys.length) { card.innerHTML = `<h3><i class="fa-solid fa-rotate"></i> Spaced review</h3><p class="srs-p">Tap <b>☆ Save word</b> on any card. Saved words come back for review just before you would forget them: after 10 minutes, 1 day, 3 days, a week and more. This is the fastest way to really remember vocabulary.</p>`; return; }
+            const by = (lo, hi) => keys.filter(k => srsBox(vocabBank[k]) >= lo && srsBox(vocabBank[k]) <= hi).length;
+            const nextDue = keys.map(k => vocabBank[k].due || 0).filter(d => d > Date.now()).sort((a, b) => a - b)[0];
+            card.innerHTML = `<div class="srs-top"><h3><i class="fa-solid fa-rotate"></i> Spaced review</h3>${streak ? `<span class="srs-streak">🔥 ${streak} day${streak === 1 ? '' : 's'}</span>` : ''}</div>
+                <div class="srs-big">${due.length ? `<b>${due.length}</b> word${due.length === 1 ? '' : 's'} to review now` : '<b>All caught up</b>'}</div>
+                <div class="srs-bar"><i style="width:${Math.round(by(4, 5) / keys.length * 100)}%"></i></div>
+                <p class="srs-p">New ${by(0, 0)} · Learning ${by(1, 3)} · Strong ${by(4, 5)}${!due.length && nextDue ? ` · Next review ${srsIn(nextDue)}` : ''}</p>
+                <button type="button" class="sx-btn ${due.length ? 'sx-btn-main' : 'sx-btn-ghost'}" id="srs-start">${due.length ? `Review ${Math.min(12, due.length)} word${Math.min(12, due.length) === 1 ? '' : 's'}` : 'Practise my words anyway'}</button>`;
+        }
+        function srsStart() {
+            const due = srsDueList();
+            const pool = due.length ? due : qzShuffle(Object.keys(vocabBank)).sort((a, b) => srsBox(vocabBank[a]) - srsBox(vocabBank[b]));
+            if (!pool.length) return;
+            srs = { queue: pool.slice(0, 12), i: 0, shown: false, again: 0, good: 0, easy: 0 };
+            srsRender();
+        }
+        function srsRender() {
+            const card = qzEl('srs-card'); if (!card || !srs) return;
+            const n = srs.queue.length;
+            if (srs.i >= n) {
+                try { stopListening(); } catch (e) {}
+                srsTouchStreak(); saveVocabBank();
+                const ok = srs.good + srs.easy, streak = srsStreak();
+                card.innerHTML = `<h3><i class="fa-solid fa-circle-check" style="color:#34d399"></i> Review finished</h3><div class="srs-big"><b>${ok}</b> of ${n} remembered</div>
+                    <p class="srs-p">${srs.again ? `${srs.again} word${srs.again === 1 ? '' : 's'} will come back in 10 minutes. ` : 'Every word moved up a box. '}${streak ? `🔥 ${streak}-day review streak. Come back tomorrow to keep it.` : ''}</p>
+                    <button type="button" class="sx-btn sx-btn-main" id="srs-done">Done</button>`;
+                return;
+            }
+            const k = srs.queue[srs.i], e = vocabBank[k] || {};
+            const front = `<div class="srs-word">${escapeHTML(k)}</div>${e.pos ? `<div class="srs-pos">${escapeHTML(e.pos)}</div>` : ''}<button type="button" class="sx-link" data-srs-hear="1"><i class="fa-solid fa-volume-high"></i> Hear it</button>`;
+            const back = srs.shown ? `<div class="srs-back"><div class="srs-mean">${escapeHTML(e.m || '(no meaning saved)')}</div>${e.km ? `<div class="qz-km">${escapeHTML(e.km)}</div>` : ''}${e.ex ? `<div class="sx-hint" style="margin-top:.35rem">“${escapeHTML(e.ex)}”</div>` : ''}${e.col ? `<div class="sx-hint">Use it: <b>${escapeHTML(e.col)}</b></div>` : ''}</div>
+                <div class="srs-rate"><button type="button" class="srs-r again" data-srs-rate="again">Again<small>${srsLabel(srsNext(e, 'again'))}</small></button><button type="button" class="srs-r good" data-srs-rate="good">Good<small>${srsLabel(srsNext(e, 'good'))}</small></button><button type="button" class="srs-r easy" data-srs-rate="easy">Easy<small>${srsLabel(srsNext(e, 'easy'))}</small></button></div>`
+                : `<p class="srs-p" style="text-align:center">Try to remember the meaning first, then check.</p><button type="button" class="sx-btn sx-btn-main" data-srs-show="1">Show answer</button>`;
+            card.innerHTML = `<div class="srs-top"><span class="srs-p">Word ${srs.i + 1} of ${n}</span><button type="button" class="sx-link" id="srs-quit">Stop</button></div><div class="qz-prog"><i style="width:${Math.round(srs.i / n * 100)}%"></i></div><div class="srs-front">${front}</div>${back}`;
+        }
+        qzEl('srs-card')?.addEventListener('click', (e) => {
+            const t = e.target;
+            if (t.closest('#srs-start')) { srsStart(); return; }
+            if (t.closest('#srs-done') || t.closest('#srs-quit')) { try { stopListening(); } catch (x) {} const was = srs; srs = null; if (was && was.i > 0 && was.i < was.queue.length) { srsTouchStreak(); saveVocabBank(); } renderVocabBank(); return; }
+            if (!srs) return;
+            if (t.closest('[data-srs-show]')) { srs.shown = true; srsRender(); return; }
+            if (t.closest('[data-srs-hear]')) { unlockHdAudio(); playListening(srs.queue[srs.i], 0.9); return; }
+            const r = t.closest('[data-srs-rate]');
+            if (r) { const rating = r.dataset.srsRate; srsRate(srs.queue[srs.i], rating); srs[rating]++; srs.i++; srs.shown = false; saveVocabBank(); srsRender(); srsBadge(); }
+        });
+        // keyboard on a computer: Space = show answer, 1 / 2 / 3 = Again / Good / Easy
+        document.addEventListener('keydown', (e) => {
+            if (!srs || e.target.closest('input,textarea,select') || e.ctrlKey || e.metaKey || e.altKey) return;
+            if (!qzEl('view-vocab') || qzEl('view-vocab').classList.contains('hide')) return;
+            if (!srs.shown && (e.key === ' ' || e.key === 'Enter') && srs.i < srs.queue.length) { e.preventDefault(); qzEl('srs-card')?.querySelector('[data-srs-show]')?.click(); }
+            else if (srs.shown && ['1', '2', '3'].includes(e.key)) qzEl('srs-card')?.querySelector(`[data-srs-rate="${['again', 'good', 'easy'][Number(e.key) - 1]}"]`)?.click();
+        });
+        // essay upgrades from the Band 7 rewrite go straight into the word review
+        document.getElementById('writing-rewrite-box')?.addEventListener('click', async (e) => {
+            const one = e.target.closest('[data-wr-save]'), all = e.target.closest('[data-wr-saveall]');
+            if (!one && !all) return;
+            const list = (activeWritingTest?.rewrite?.changes || []).slice(0, 6);
+            const idxs = one ? [Number(one.dataset.wrSave)] : list.map((_, i) => i);
+            await loadVocabBank();
+            let added = 0;
+            idxs.forEach(i => {
+                const c = list[i]; if (!c) return;
+                const key = String(c.to).trim().toLowerCase().slice(0, 50); if (!key || vocabBank[key]) return;
+                vocabBank[key] = srsNew({ m: String(c.why || `A stronger way to say "${c.from}"`).slice(0, 140), ex: `Instead of “${c.from}” write “${c.to}”.`, src: 'essay' });
+                added++;
+            });
+            if (added) { await saveVocabBank(); renderVocabBank(); }
+            document.querySelectorAll('#writing-rewrite-box [data-wr-save]').forEach(b => { const c = list[Number(b.dataset.wrSave)]; if (c && vocabBank[String(c.to).trim().toLowerCase().slice(0, 50)]) { b.textContent = '✓ In your word review'; b.disabled = true; } });
+            showToast(added ? `Saved ${added} word${added === 1 ? '' : 's'}. ${added === 1 ? 'It' : 'They'} will come back in your Vocabulary review.` : 'Already in your word review.', added ? 'success' : 'info');
+        });
+
         function renderVocabCards() {
             const stage = qzEl('vocab-stage');
             stage.innerHTML = vocabWords.map((w, i) => `<div class="qz-card" data-i="${i}"><div><span class="qz-word">${escapeHTML(w.word)}</span><span class="qz-pos">${escapeHTML(w.pos || '')}</span><span class="qz-tap">tap to see</span></div>
@@ -4220,7 +4343,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             stage.querySelectorAll('.qz-card').forEach(c => c.addEventListener('click', (e) => { if (e.target.closest('.qz-save')) return; c.querySelector('.qz-more').classList.toggle('hide'); c.querySelector('.qz-tap')?.classList.add('hide'); }));
             stage.querySelectorAll('.qz-save').forEach(b => b.addEventListener('click', () => {
                 const w = vocabWords[Number(b.dataset.save)];
-                if (vocabBank[w.word]) { delete vocabBank[w.word]; b.textContent = '☆ Save word'; } else { vocabBank[w.word] = { m: w.meaning, ex: w.example, ts: Date.now() }; b.textContent = '✓ Saved'; }
+                if (vocabBank[w.word]) { delete vocabBank[w.word]; b.textContent = '☆ Save word'; } else { vocabBank[w.word] = srsNew({ m: w.meaning, ex: w.example, km: w.km || '', pos: w.pos || '', col: w.collocation || '' }); b.textContent = '✓ Saved'; }
                 saveVocabBank(); renderVocabBank();
             }));
             qzEl('btn-vocab-quiz')?.addEventListener('click', () => vocabQuiz(vocabWords));
