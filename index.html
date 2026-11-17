@@ -40,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261117d">
+    <link rel="stylesheet" href="style.css?v=20261117e">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -462,6 +462,10 @@
                     <textarea id="writing-area" class="sx-area" placeholder="Type your answer here. Plan first: introduction, 2-3 body paragraphs, conclusion." spellcheck="false"></textarea>
                     <label class="sx-btn sx-btn-ghost sx-photo"><i class="fa-solid fa-camera" style="color:#38bdf8"></i>Wrote on paper? Photo of my handwriting<input type="file" id="hw-upload-single" accept="image/*" multiple class="hide"></label>
                     <p id="hw-note-single" class="sx-photo-note hide"></p>
+                    <details id="xr-box" class="sx-fold">
+                        <summary><i class="fa-solid fa-microscope" style="color:#22d3ee"></i>Essay X-ray: instant check, no AI</summary>
+                        <div class="sx-fold-body"><div id="xr-body"></div></div>
+                    </details>
 
                     <button type="button" id="btn-ai-grade-essay" class="sx-btn sx-btn-main"><i class="fa-solid fa-wand-magic-sparkles"></i>Mark my writing &amp; save score</button>
                     <div class="sx-row">
@@ -3055,6 +3059,7 @@ Then a markdown table with columns Criterion | Band | Comment, then "Main proble
             if (writingArea) writingArea.value = testObj.essayText || "";
             document.getElementById('writing-sample-box')?.classList.add('hide');
             wpRender(testObj);
+            try { xrRun(); } catch (e) {}
             const rwb = document.getElementById('writing-rewrite-box');
             if (rwb) { const rw = testObj.rewrite; if (rw && rw.rewrite && rw.essay === (testObj.essayText || '').trim()) { rwb.classList.remove('hide'); rwb.innerHTML = rewriteHTML(rw.essay, rw); } else { rwb.classList.add('hide'); rwb.innerHTML = ''; } }
             updateWordCount();
@@ -3422,6 +3427,105 @@ After the answer add "Why this is Band 8" with 4 short bullet points (structure,
             activeWritingTest = { ...activeWritingTest, rewrite: r };
             box.innerHTML = rewriteHTML(essay, r);
         }
+        // ===== Essay X-ray: instant checks a computer can do without AI (length, structure, linking words, repeats, sentences, style, common slips) =====
+        const XR_LINKERS = ['however', 'moreover', 'furthermore', 'in addition', 'additionally', 'therefore', 'thus', 'consequently', 'as a result', 'for example', 'for instance', 'such as', 'on the other hand', 'in contrast', 'by contrast', 'whereas', 'while', 'although', 'even though', 'despite', 'in spite of', 'nevertheless', 'nonetheless', 'firstly', 'secondly', 'thirdly', 'finally', 'in conclusion', 'to conclude', 'to sum up', 'in summary', 'besides', 'apart from', 'similarly', 'likewise', 'in particular', 'in fact', 'because of', 'due to', 'as long as', 'unless', 'otherwise', 'meanwhile', 'subsequently', 'overall', 'in other words', 'for this reason', 'that is why'];
+        const XR_STOP = new Set('about above after again against also although always among because before being between both cannot could every first from further have having here however into just like many more most much must never often only other should since some still such than that their them then there these they this those through under until upon very were what when where whether which while with would your people'.split(' '));
+        // [pattern, what it is, what to write instead, how many times before it is worth mentioning]
+        const XR_INFORMAL = [
+            [/\bkids\b/gi, 'kids', 'children', 1], [/\bguys\b/gi, 'guys', 'people', 1], [/\bstuff\b/gi, 'stuff', 'things / items', 1], [/\b(gonna|wanna|gotta)\b/gi, 'gonna / wanna', 'going to / want to', 1],
+            [/\ba lot of\b/gi, 'a lot of', 'many / much / a great deal of', 1], [/\blots of\b/gi, 'lots of', 'many / numerous', 1],
+            [/\bthings?\b/gi, 'thing(s)', 'a more exact noun', 3], [/\breally\b/gi, 'really', 'delete it or use a stronger word', 2], [/\b(get|gets|got|getting)\b/gi, 'get / got', 'obtain, receive, become', 3],
+            [/\betc\b\.?/gi, 'etc.', 'name the examples or use "such as"', 1], [/\band so on\b/gi, 'and so on', 'name the examples', 1],
+            [/\b\w+n['’]t\b|\b(?:it|that|there|he|she|i|we|they|you|let)['’](?:s|m|re|ve|ll|d)\b/gi, 'contractions (don\'t, it\'s)', 'write them in full: do not, it is', 1],
+            [/(?:^|[.!?]\s+)(?:and|but|so)\s/gi, 'sentences starting with And / But / So', 'use However, Moreover, Therefore', 1]
+        ];
+        const XR_SLIPS = [
+            [/\bdiscuss about\b/gi, 'discuss about', 'discuss'], [/\bmention about\b/gi, 'mention about', 'mention'], [/\bemphasi[sz]e on\b/gi, 'emphasise on', 'emphasise'],
+            [/\bin the other hand\b/gi, 'in the other hand', 'on the other hand'], [/\bmore (?:better|easier|cheaper|faster|worse|bigger|harder|healthier|safer)\b/gi, 'more + better/easier...', 'use only one: better, easier'],
+            [/\b(?:advices|informations|knowledges|furnitures|equipments|homeworks|feedbacks|researchs|traffics)\b/gi, 'plural of an uncountable noun', 'advice, information, knowledge (no -s)'],
+            [/\bpeoples\b/gi, 'peoples', 'people'], [/\bchildrens\b|\bchilds\b/gi, 'childrens / childs', 'children'],
+            [/\bmany (?:money|time|water|pollution|traffic|information|advice)\b/gi, 'many + uncountable noun', 'much'], [/\bmuch (?:people|cars|students|problems|jobs|children|countries)\b/gi, 'much + countable noun', 'many'],
+            [/\bdespite of\b/gi, 'despite of', 'despite / in spite of'], [/\bam agree\b/gi, 'am agree', 'agree'], [/\b(?:he|she|it) (?:have|don['’]t|are)\b/gi, 'he / she / it + have, don\'t, are', 'has, doesn\'t, is'],
+            [/\b(?:people|they|we) is\b/gi, 'people is', 'people are'], [/\bcan able to\b/gi, 'can able to', 'can / be able to'], [/\bthe reason is because\b/gi, 'the reason is because', 'the reason is that']
+        ];
+        const XR_CLICHE = /\bnowadays\b|\bin today['’]?s (?:modern )?(?:world|society)\b|\bin this modern (?:world|era|age)\b|\bsince the dawn of\b|\bas we all know\b|\bit is (?:a )?well[- ]known fact\b/gi;
+        function xrayAnalyze(text, task) {
+            const t = String(text || '').replace(/\r/g, ''), lower = t.toLowerCase();
+            const n = t.trim() ? t.trim().split(/\s+/).length : 0;
+            if (!n) return { n: 0, rows: [], empty: true };
+            const rows = [], add = (s, title, d) => rows.push({ s, t: title, d });
+            const c = (x) => `<code>${escapeHTML(x)}</code>`, count = (re) => (t.match(re) || []).length;
+            const min = task === 1 ? 150 : 250, top = min + (task === 1 ? 70 : 130);
+            // length
+            if (n < min) add('bad', 'Length', `${n} words. Task ${task} needs at least ${min}, so you are ${min - n} short. Short answers lose marks.`);
+            else if (n > top) add('warn', 'Length', `${n} words. This is much longer than needed (about ${min} to ${min + (task === 1 ? 50 : 90)}). Check that you are not repeating ideas, and keep time to check your work.`);
+            else add('ok', 'Length', `${n} words. Good: above the minimum of ${min}.`);
+            // paragraphs
+            const paras = t.split(/\n+/).filter(p => p.trim()).length, needP = task === 1 ? 3 : 4;
+            add(paras >= needP ? 'ok' : paras === needP - 1 ? 'warn' : 'bad', 'Paragraphs', paras >= needP ? `${paras} paragraphs. ${task === 1 ? 'Introduction, overview and detail: clear.' : 'Introduction, body paragraphs and conclusion: clear.'}` : `${paras} paragraph${paras === 1 ? '' : 's'}. ${task === 1 ? 'Use at least 3: introduction, overview, then the details.' : 'Use 4: introduction, two body paragraphs, conclusion. Press Enter twice between them.'}`);
+            // structure
+            if (task === 1) {
+                add(/\b(overall|in general|generally speaking|it is clear that|it can be seen that|as can be seen|the most (?:striking|noticeable|significant)|in summary|to summarise|to summarize)\b/i.test(t) ? 'ok' : 'bad', 'Overview', /\b(overall|in general|generally speaking|it is clear that|it can be seen that|as can be seen|the most (?:striking|noticeable|significant)|in summary|to summarise|to summarize)\b/i.test(t) ? 'An overview is there. This is the most important part of Task 1.' : 'No overview found. Write one paragraph that starts with "Overall," and states the main trend or the biggest difference. Without it, your Task Achievement score drops.');
+                const nums = count(/\d+(?:[.,]\d+)?%?/g);
+                add(nums >= 4 ? 'ok' : 'warn', 'Numbers', nums >= 4 ? `${nums} figures used to support the description.` : 'Use more figures from the chart (for example "rose from 20% to 45%"). Details need data.');
+                if (/\b(i think|i believe|in my opinion|i feel|personally)\b/i.test(t)) add('warn', 'No opinions', 'Task 1 describes data only. Remove "I think / in my opinion".');
+            } else {
+                add(/\b(in conclusion|to conclude|to sum up|in summary|to summari[sz]e|all in all)\b/i.test(t) ? 'ok' : 'warn', 'Conclusion', /\b(in conclusion|to conclude|to sum up|in summary|to summari[sz]e|all in all)\b/i.test(t) ? 'A conclusion phrase is there.' : 'No clear conclusion. Finish with "In conclusion, ..." and repeat your position in new words.');
+                add(/\b(i (?:strongly |totally |partly |completely |fully )?(?:agree|disagree)|in my (?:opinion|view)|i believe|i think|this essay|from my (?:perspective|point of view)|i would argue|i am of the opinion)\b/i.test(t) ? 'ok' : 'warn', 'Your position', /\b(i (?:strongly |totally |partly |completely |fully )?(?:agree|disagree)|in my (?:opinion|view)|i believe|i think|this essay|from my (?:perspective|point of view)|i would argue|i am of the opinion)\b/i.test(t) ? 'Your opinion is stated.' : 'Your opinion is not clear. Say what you think in the introduction, for example "I strongly agree that ...".');
+            }
+            // linking words
+            const lc = {}; let distinct = 0;
+            XR_LINKERS.forEach(l => { const m = lower.match(new RegExp('\\b' + l.replace(/ /g, '\\s+') + '\\b', 'g')); if (m) { lc[l] = m.length; distinct++; } });
+            const needL = task === 1 ? 4 : 6, over = Object.entries(lc).filter(([, k]) => k >= 4);
+            const usedL = Object.keys(lc).slice(0, 8).map(c).join(' ');
+            add(over.length ? 'warn' : distinct >= needL ? 'ok' : distinct >= needL - 2 ? 'warn' : 'bad', 'Linking words',
+                `${distinct} different linking word${distinct === 1 ? '' : 's'}${distinct ? ': ' + usedL : ''}.${over.length ? ` You use ${over.map(([w, k]) => c(w) + ' ×' + k).join(', ')} too often: vary them.` : distinct >= needL ? ' Good variety.' : ` Aim for ${needL} or more, for example however, moreover, for example, whereas, as a result.`}`);
+            // repeated words
+            const freq = {};
+            (lower.match(/[a-z][a-z'’-]*/g) || []).forEach(w => { if (w.length < 5 || XR_STOP.has(w)) return; const k = w.length > 5 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w; freq[k] = (freq[k] || 0) + 1; });
+            const rep = Object.entries(freq).filter(([, k]) => k >= (task === 1 ? 4 : 5)).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            add(rep.length ? 'warn' : 'ok', 'Repeated words', rep.length ? `${rep.map(([w, k]) => c(w) + ' ×' + k).join(', ')}. Topic words are fine, but replace some with synonyms or pronouns to show range.` : 'No word is repeated too often.');
+            // sentences
+            const sents = t.replace(/\s+/g, ' ').trim().replace(/([.!?])\s+/g, '$1\u0001').split('\u0001').filter(s => /\w/.test(s));
+            const lens = sents.map(s => s.split(/\s+/).filter(Boolean).length);
+            if (lens.length >= 3) {
+                const avg = lens.reduce((a, b) => a + b, 0) / lens.length, sd = Math.sqrt(lens.reduce((a, b) => a + (b - avg) ** 2, 0) / lens.length), longN = lens.filter(l => l >= 35).length;
+                let st = 'ok', msg = `${lens.length} sentences, ${Math.round(avg)} words on average.`;
+                if (avg < 11) { st = 'warn'; msg += ' Very short. Join ideas with because, although, which.'; }
+                else if (avg > 27) { st = 'warn'; msg += ' Very long. Split some sentences so the reader can follow.'; }
+                if (longN) { st = 'warn'; msg += ` ${longN} sentence${longN === 1 ? ' is' : 's are'} over 35 words: check for run-on sentences.`; }
+                if (lens.length >= 6 && sd < 3.5 && st === 'ok') { st = 'warn'; msg += ' All sentences are about the same length. Mix short and long ones.'; }
+                if (st === 'ok') msg += ' Good mix.';
+                add(st, 'Sentence length', msg);
+                const sub = /\b(although|though|whereas|while|because|since|which|who|whom|whose|if|unless|when|whenever|so that|even though|as long as|provided that|despite|in spite of|not only|rather than)\b/i;
+                const ratio = sents.filter(s => sub.test(s)).length / lens.length;
+                add(ratio >= 0.4 ? 'ok' : ratio >= 0.2 ? 'warn' : 'bad', 'Complex sentences', `${Math.round(ratio * 100)}% of your sentences use a clause word (although, which, because...). ${ratio >= 0.4 ? 'Good: Band 7 needs a mix of simple and complex sentences.' : 'Add more, for example "Although ..., ...", "..., which ...", "Because ..., ...".'}`);
+            }
+            // formal style
+            const inf = [];
+            XR_INFORMAL.forEach(([re, what, fix, minN]) => { const k = count(re); if (k >= minN) inf.push(`${c(what)} ×${k} → ${escapeHTML(fix)}`); });
+            if (task === 2) { const k = count(/\byou(?:r|rs|rself)?\b/gi); if (k >= 2) inf.push(`${c('you')} ×${k} → people / one / students`); }
+            add(inf.length ? 'warn' : 'ok', 'Formal style', inf.length ? inf.slice(0, 6).join('<br>') : 'Formal and neutral: no contractions or casual words found.');
+            // common slips
+            const slips = []; let slipN = 0;
+            XR_SLIPS.forEach(([re, what, fix]) => { const m = t.match(re); if (m) { slipN += m.length; slips.push(`${c(m[0].toLowerCase())} → ${escapeHTML(fix)}`); } });
+            add(slipN >= 3 ? 'bad' : slipN ? 'warn' : 'ok', 'Common slips', slipN ? slips.slice(0, 6).join('<br>') : 'None of the most common learner slips were found. (This only checks the most frequent ones.)');
+            const cl = t.match(XR_CLICHE);
+            if (cl) rows.push({ s: 'info', t: 'Overused openers', d: `${[...new Set(cl.map(x => x.toLowerCase()))].map(c).join(' ')}: examiners read these in thousands of essays. Start with your actual topic instead.` });
+            return { n, rows };
+        }
+        function xrayHTML(r) {
+            if (r.empty) return '<p class="sx-hint" style="color:#94a3b8">Write or paste your answer first. The checks appear here and update while you type.</p>';
+            const scored = r.rows.filter(x => x.s !== 'info'), ok = scored.filter(x => x.s === 'ok').length;
+            return `<div class="xr-sum"><b>${ok} of ${scored.length}</b> quick checks look good<span>${r.n} words</span></div>
+                <ul class="xr-list">${r.rows.map(x => `<li class="xr-${x.s}"><i class="xr-dot"></i><div><b>${escapeHTML(x.t)}</b><span>${x.d}</span></div></li>`).join('')}</ul>
+                <p class="xr-note">These checks cannot judge your ideas or exact grammar. For a real band score press <b>Mark my writing</b>.</p>`;
+        }
+        const xrBox = document.getElementById('xr-box'); let xrTimer = 0;
+        function xrRun() { const b = document.getElementById('xr-body'); if (!b || !xrBox?.open) return; b.innerHTML = xrayHTML(xrayAnalyze(writingArea?.value || '', activeWritingTest?.task === 1 ? 1 : 2)); }
+        xrBox?.addEventListener('toggle', xrRun);
+        writingArea?.addEventListener('input', () => { clearTimeout(xrTimer); xrTimer = setTimeout(xrRun, 350); });
+
         document.getElementById('btn-ai-writing-rewrite')?.addEventListener('click', writingRewrite);
 
         // ===== Dictation: hear one sentence, type it, see exactly which words you missed =====
