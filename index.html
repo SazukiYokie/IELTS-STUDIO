@@ -40,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261117f">
+    <link rel="stylesheet" href="style.css?v=20261117g">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -358,6 +358,7 @@
                             <button type="button" id="ai-send-btn" class="ai-send" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
                         </div>
                         <label class="ai-auto"><input type="checkbox" id="ai-mic-auto"><span>Hands-free: stop listening and send by itself when I pause</span></label>
+                        <label class="ai-auto ai-auto-last"><input type="checkbox" id="ai-speak-auto"><span>Voice chat: read the tutor's answers aloud</span></label>
                     </div>
                   </div>
                 </div>
@@ -1801,6 +1802,10 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
 
             chatBox.innerHTML += `<div class="ai-msg"><div class="ai-av"><i class="fa-solid fa-robot"></i></div><div class="ai-bub ai-prose">${formatAIMarkdown(reply || "Please try again.")}${aiReply ? '<button type="button" class="ai-listen" data-ai-listen="1"><i class="fa-solid fa-volume-high"></i> Listen</button>' : ''}</div></div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
+            if (aiReply && document.getElementById('ai-speak-auto')?.checked && chatBox.getClientRects().length > 0) {   // only while you are on this page
+                const lb = [...chatBox.querySelectorAll('.ai-listen')].pop();
+                if (lb) { try { aiListenToggle(lb); } catch (e) {} }
+            }
         }
 
         document.getElementById('ai-send-btn')?.addEventListener('click', () => sendChat());
@@ -1836,6 +1841,8 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             if (isRecordingNow()) return showToast("Finish the other recording first (Speaking test).", "info");
             if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return showToast("This browser can't record audio. Type your question, or try Chrome.", "error");
             if (aiBusyGuard()) return;
+            if (document.querySelector('#ai-chat-box .ai-listen.playing')) aiListenStop();
+            if (tmSpeakOn()) unlockHdAudio();
             tmOpenAudio();
             try { tm.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
             catch (e) { tmCloseAudio(); return showToast("Allow the microphone in your browser, then tap the mic again.", "error"); }
@@ -1938,20 +1945,26 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
         // leaving the page or signing out never leaves the microphone open
         document.addEventListener('click', (e) => { if (tm.state !== 'idle' && e.target.closest('.nav-btn')) tmCancel(); }, true);
         // listen to a tutor answer (the first part, so it stays quick)
-        document.getElementById('ai-chat-box')?.addEventListener('click', (e) => {
-            const b = e.target.closest('[data-ai-listen]'); if (!b) return;
-            const label = '<i class="fa-solid fa-volume-high"></i> Listen';
-            const reset = () => document.querySelectorAll('#ai-chat-box .ai-listen').forEach(x => { x.classList.remove('playing'); x.innerHTML = label; });
-            if (b.classList.contains('playing')) { stopListening(); reset(); return; }
+        const AI_LISTEN_LABEL = '<i class="fa-solid fa-volume-high"></i> Listen';
+        function aiListenReset() { document.querySelectorAll('#ai-chat-box .ai-listen').forEach(x => { x.classList.remove('playing'); x.innerHTML = AI_LISTEN_LABEL; }); }
+        function aiListenStop() { stopListening(); aiListenReset(); }
+        function aiListenToggle(b) {
+            if (b.classList.contains('playing')) { aiListenStop(); return; }
             const clone = b.closest('.ai-bub').cloneNode(true);
             clone.querySelectorAll('.ai-listen, table, pre, code').forEach(x => x.remove());
             let txt = clone.textContent.replace(/\s+/g, ' ').trim();
             if (txt.length > 700) { const cut = txt.slice(0, 700), at = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! ')); txt = at > 250 ? cut.slice(0, at + 1) : cut; }
             if (!txt) return;
-            stopListening(); reset(); unlockHdAudio();
+            stopListening(); aiListenReset(); unlockHdAudio();
             b.classList.add('playing'); b.innerHTML = '<i class="fa-solid fa-stop"></i> Stop';
-            playListening(txt, 1, () => { b.classList.remove('playing'); b.innerHTML = label; });
-        });
+            playListening(txt, 1, () => { b.classList.remove('playing'); b.innerHTML = AI_LISTEN_LABEL; });
+        }
+        document.getElementById('ai-chat-box')?.addEventListener('click', (e) => { const b = e.target.closest('[data-ai-listen]'); if (b) aiListenToggle(b); });
+        // voice chat: new answers are read aloud by themselves
+        const tmSpeakOn = () => !!tmEl('ai-speak-auto')?.checked;
+        try { const sp = tmEl('ai-speak-auto'); if (sp) { sp.checked = localStorage.getItem('IELTS_TUTOR_SPEAK') === '1'; sp.addEventListener('change', () => { try { localStorage.setItem('IELTS_TUTOR_SPEAK', sp.checked ? '1' : '0'); } catch (e) {} if (sp.checked) unlockHdAudio(); else aiListenStop(); }); } } catch (e) {}
+        tmEl('ai-send-btn')?.addEventListener('click', () => { if (tmSpeakOn()) unlockHdAudio(); });
+        tmEl('ai-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && tmSpeakOn()) unlockHdAudio(); });
 
 
         // =====================================================================

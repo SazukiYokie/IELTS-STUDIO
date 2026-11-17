@@ -735,3 +735,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 /* ---- AI Tutor: hands-free level bar ---- */
 .ai-lvl { display: block; height: 5px; margin-top: 0.35rem; border-radius: 999px; background: rgba(255,255,255,0.14); overflow: hidden; }
 .ai-lvl i { display: block; height: 100%; width: 0; background: #fb7185; border-radius: 999px; transition: width 0.1s linear; }
+
+/* ---- AI Tutor: voice chat switch ---- */
+.ai-auto { padding-bottom: 0.3rem; }
+.ai-auto.ai-auto-last { padding-bottom: 0.6rem; padding-top: 0; }
