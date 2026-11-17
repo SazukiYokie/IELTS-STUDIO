@@ -8,6 +8,11 @@
     <meta name="theme-color" content="#0f172a">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icon-192.png">
+    <script>
+        // Chrome / Edge / Samsung Internet may offer "install" before the main script has loaded, so catch it here and keep it
+        window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__installEvt = e; window.dispatchEvent(new Event('ielts-install-ready')); });
+        window.addEventListener('appinstalled', function () { window.__installEvt = null; window.__installed = true; window.dispatchEvent(new Event('ielts-installed')); });
+    </script>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="IELTS KH">
@@ -35,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261115m">
+    <link rel="stylesheet" href="style.css?v=20261116b">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -642,6 +647,13 @@
                 <div id="view-settings" class="view-section hide">
                   <div class="sx" style="max-width:34rem">
                     <div class="sx-head"><div class="sx-head-ic" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)"><i class="fa-solid fa-user-gear"></i></div><div><h2>Profile</h2><p>Your name, photo and exam goal</p></div></div>
+                    <div class="sx-card" id="install-card">
+                        <h3><i class="fa-solid fa-mobile-screen-button" style="color:#34d399"></i> Install the app</h3>
+                        <p class="sx-hint" id="install-text" style="margin:0;color:#94a3b8"></p>
+                        <ul class="ins-perks" id="install-perks"><li>Opens full screen from your home screen or desktop</li><li>Loads faster and keeps your saved tests offline</li><li>No app store, free, and it updates itself</li></ul>
+                        <button type="button" id="btn-install" class="sx-btn sx-btn-main"><i class="fa-solid fa-download"></i>Install app</button>
+                        <div id="install-help" class="ins-help hide" role="region" aria-label="How to install"></div>
+                    </div>
                     <div class="sx-card">
                         <div class="pf-avatar">
                             <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=S&background=0D8ABC&color=fff" alt="Your photo">
@@ -1351,6 +1363,71 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             }
         }
 
+        // ===== Install as an app (PWA): the button in Profile =====
+        const insEl = (id) => document.getElementById(id);
+        const insStandalone = () => { try { return !!(window.matchMedia && ['standalone', 'window-controls-overlay', 'minimal-ui'].some(m => matchMedia(`(display-mode: ${m})`).matches)) || navigator.standalone === true; } catch (e) { return false; } };
+        let insDone = !!window.__installed;
+        function insEnv() {
+            const ua = navigator.userAgent || '';
+            const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            return {
+                ios, android: /Android/i.test(ua), edge: /Edg\//.test(ua), samsung: /SamsungBrowser/.test(ua), firefox: /Firefox|FxiOS/.test(ua),
+                inApp: /FBAN|FBAV|Instagram|Line\/|Telegram|TikTok|MicroMessenger|Snapchat|Zalo|Messenger/i.test(ua),
+                iosSafari: ios && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua),
+                safariMac: !ios && /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(ua)
+            };
+        }
+        function insSteps() {
+            const e = insEnv(), ol = (a) => '<ol>' + a.map(x => `<li>${x}</li>`).join('') + '</ol>';
+            if (e.inApp) return "<b>You are inside another app's browser</b> (Facebook, Telegram, TikTok...). Apps cannot be installed from here." + ol(['Tap the <b>⋮</b> or <b>Share</b> button on this screen.', 'Choose <b>Open in Chrome</b> (or <b>Open in Safari</b> on iPhone).', 'Come back to Profile and press Install again.']);
+            if (e.ios) return '<b>On iPhone / iPad</b>' + (e.iosSafari
+                ? ol(['Tap the <b>Share</b> button (a square with an arrow pointing up).', 'Scroll down and tap <b>Add to Home Screen</b>.', 'Tap <b>Add</b>. The IELTS KH icon appears on your home screen.'])
+                : ol(['Tap the <b>Share</b> button in the address bar or the menu.', 'Tap <b>Add to Home Screen</b>, then <b>Add</b>.', 'If you do not see it, open this page in <b>Safari</b> and try again.']));
+            if (e.firefox && !e.android) return 'Firefox on a computer cannot install web apps. Open this page in <b>Chrome</b> or <b>Edge</b>, then press Install again.';
+            if (e.safariMac) return '<b>Safari on Mac</b>' + ol(['Click <b>File</b> in the menu bar.', 'Choose <b>Add to Dock</b>.']);
+            if (e.android) return '<b>On Android</b>' + ol(['Tap the <b>⋮</b> menu in the top right corner of ' + (e.samsung ? 'Samsung Internet' : e.firefox ? 'Firefox' : 'Chrome') + '.', 'Tap <b>Install app</b> (or <b>Add to Home screen</b>).', 'Tap <b>Install</b>.']);
+            if (e.edge) return '<b>On Microsoft Edge</b>' + ol(['Click <b>⋯</b> in the top right corner, then <b>Apps</b>.', 'Click <b>Install this site as an app</b>.']);
+            return '<b>On a computer (Chrome)</b>' + ol(['Click the <b>install icon</b> at the right end of the address bar (a small screen with a down arrow), or open the <b>⋮</b> menu.', 'Choose <b>Install IELTS Studio KH</b>.', 'Click <b>Install</b>. It opens in its own window and you can pin it to your taskbar.']);
+        }
+        function insPaint() {
+            const txt = insEl('install-text'), btn = insEl('btn-install'), help = insEl('install-help'), perks = insEl('install-perks');
+            if (!txt || !btn) return;
+            const standalone = insStandalone();
+            if (standalone || insDone) {
+                txt.innerHTML = standalone ? '<span class="ins-ok">✓ You are using the installed app.</span>' : '<span class="ins-ok">✓ Installed. Open <b>IELTS KH</b> from your home screen or app list.</span>';
+                btn.classList.add('hide'); help.classList.add('hide'); perks.classList.add('hide'); return;
+            }
+            perks.classList.remove('hide');
+            txt.textContent = 'Put IELTS Studio on your phone or computer like a normal app.';
+            btn.classList.remove('hide');
+            btn.innerHTML = window.__installEvt ? '<i class="fa-solid fa-download"></i>Install app' : '<i class="fa-solid fa-circle-question"></i>How to install';
+        }
+        insEl('btn-install')?.addEventListener('click', async () => {
+            const evt = window.__installEvt;
+            if (evt) {
+                try {
+                    evt.prompt(); const r = await evt.userChoice; window.__installEvt = null;
+                    if (r && r.outcome === 'accepted') { insDone = true; showToast("Installing... look for <b>IELTS KH</b> on your home screen or app list.", "success"); }
+                    else showToast("No problem. You can install it any time from here.", "info");
+                } catch (e) { window.__installEvt = null; }
+                insPaint(); return;
+            }
+            const help = insEl('install-help'); help.innerHTML = insSteps(); help.classList.toggle('hide');
+        });
+        window.addEventListener('ielts-install-ready', () => { insPaint(); installTip(); });
+        window.addEventListener('ielts-installed', () => { const was = insDone; insDone = true; insPaint(); if (!was) showToast("✓ Installed. Open <b>IELTS KH</b> from your home screen or app list.", "success"); });
+        try { matchMedia('(display-mode: standalone)').addEventListener('change', insPaint); } catch (e) {}
+        // a single friendly reminder, only where installing is possible and only once
+        function installTip() {
+            try {
+                if (!sessionUid || insStandalone() || insDone || localStorage.getItem('IELTS_INSTALL_TIP')) return;
+                if (!window.__installEvt && !insEnv().ios) return;
+                localStorage.setItem('IELTS_INSTALL_TIP', '1');
+                setTimeout(() => showToast("Tip: install this as an app. Open <b>Profile → Install app</b>.", "info"), 5000);
+            } catch (e) {}
+        }
+        insPaint();
+
         onAuthStateChanged(auth, async (user) => {
             // Always tear down the previous account's data before anything else
             if (sessionUid && (!user || user.uid !== sessionUid)) endSession();
@@ -1378,6 +1455,9 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
 
             await ensureUserProfile(user);
             if (sessionUid !== uid) return;
+            // long-press shortcuts of the installed app open a page directly (for example index.html#listening)
+            try { const h = location.hash.slice(1); if (/^(mock|reading|listening|writing|speaking|vocab|grammar|ai|mistakes)$/.test(h)) { document.querySelector(`.nav-btn[data-target="${h}"]`)?.click(); history.replaceState(null, '', location.pathname + location.search); } } catch (e) {}
+            installTip();
 
             // Every listener below is stored so it can be switched off when this account signs out
             const guard = (fn) => (...args) => { if (sessionUid === uid) fn(...args); };
