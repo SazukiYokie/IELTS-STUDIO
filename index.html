@@ -40,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261117g">
+    <link rel="stylesheet" href="style.css?v=20261118b">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -1241,6 +1241,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
         function endSession() {
             sessionUnsubs.forEach(fn => { try { fn(); } catch (e) {} });
             try { tmCancel(); } catch (e) {}
+            try { sbCancel(); } catch (e) {}
             try { vocabBank = {}; vocabMeta = {}; vocabLoadedFor = ''; srs = null; vocabWords = []; srsBadge(); const sc = document.getElementById('srs-card'); if (sc) sc.innerHTML = ''; } catch (e) {}
             sessionUnsubs = [];
             sessionUid = null;
@@ -1839,6 +1840,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
         async function tmStart() {
             if (tm.state === 'busy') return showToast("Still turning your last recording into text...", "info");
             if (isRecordingNow()) return showToast("Finish the other recording first (Speaking test).", "info");
+            if (sbBusy()) return showToast("Finish the Say it recording first.", "info");
             if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return showToast("This browser can't record audio. Type your question, or try Chrome.", "error");
             if (aiBusyGuard()) return;
             if (document.querySelector('#ai-chat-box .ai-listen.playing')) aiListenStop();
@@ -1911,8 +1913,8 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             tmCleanup(); tm.state = 'idle'; tmPaint();
         }
         async function tmDone(g) {
-            tmCleanup();
             if (g !== tm.gen) return;
+            tmCleanup();
             const type = tm.rec?.mimeType || 'audio/webm', blob = new Blob(tm.chunks, { type });
             if (blob.size < 2500) { tm.state = 'idle'; tmPaint(); return showToast("That was too short. Tap the mic and speak a little longer.", "error"); }
             tm.state = 'busy'; tmPaint();
@@ -4047,6 +4049,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             if (mediaRec && mediaRec.state === 'recording') return stopRecording();
             if (dictActive) return showToast("Stop the live dictation first.", "info");
             if (tm.state !== 'idle') return showToast("Finish the AI Tutor microphone first.", "info");
+            if (sbBusy()) return showToast("Finish the Say it recording first.", "info");
             if (transcribing) return showToast("Still turning your last recording into text...", "info");
             if (!activeSpeakingTest) return showToast("Press New Speaking Test first!", "error");
             if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return showToast("This browser can't record audio. Type your answer, or try Chrome.", "error");
@@ -4552,6 +4555,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
         }
         function srsRender() {
             const card = qzEl('srs-card'); if (!card || !srs) return;
+            sbCancel();
             const n = srs.queue.length;
             if (srs.i >= n) {
                 try { stopListening(); } catch (e) {}
@@ -4563,8 +4567,8 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
                 return;
             }
             const k = srs.queue[srs.i], e = vocabBank[k] || {};
-            const front = `<div class="srs-word">${escapeHTML(k)}</div>${e.pos ? `<div class="srs-pos">${escapeHTML(e.pos)}</div>` : ''}<button type="button" class="sx-link" data-srs-hear="1"><i class="fa-solid fa-volume-high"></i> Hear it</button>`;
-            const back = srs.shown ? `<div class="srs-back"><div class="srs-mean">${escapeHTML(e.m || '(no meaning saved)')}</div>${e.km ? `<div class="qz-km">${escapeHTML(e.km)}</div>` : ''}${e.ex ? `<div class="sx-hint" style="margin-top:.35rem">“${escapeHTML(e.ex)}”</div>` : ''}${e.col ? `<div class="sx-hint">Use it: <b>${escapeHTML(e.col)}</b></div>` : ''}</div>
+            const front = `<div class="srs-word">${escapeHTML(k)}</div>${e.pos ? `<div class="srs-pos">${escapeHTML(e.pos)}</div>` : ''}<button type="button" class="sx-link" data-srs-hear="1"><i class="fa-solid fa-volume-high"></i> Hear it</button>${sbHTML(k, 'Say the word')}`;
+            const back = srs.shown ? `<div class="srs-back"><div class="srs-mean">${escapeHTML(e.m || '(no meaning saved)')}</div>${e.km ? `<div class="qz-km">${escapeHTML(e.km)}</div>` : ''}${e.ex ? `<div class="sx-hint" style="margin-top:.35rem">“${escapeHTML(e.ex)}”</div>` : ''}${e.ex && e.src !== 'essay' ? sbHTML(e.ex, 'Say the sentence') : ''}${e.col ? `<div class="sx-hint">Use it: <b>${escapeHTML(e.col)}</b></div>` : ''}</div>
                 <div class="srs-rate"><button type="button" class="srs-r again" data-srs-rate="again">Again<small>${srsLabel(srsNext(e, 'again'))}</small></button><button type="button" class="srs-r good" data-srs-rate="good">Good<small>${srsLabel(srsNext(e, 'good'))}</small></button><button type="button" class="srs-r easy" data-srs-rate="easy">Easy<small>${srsLabel(srsNext(e, 'easy'))}</small></button></div>`
                 : `<p class="srs-p" style="text-align:center">Try to remember the meaning first, then check.</p><button type="button" class="sx-btn sx-btn-main" data-srs-show="1">Show answer</button>`;
             card.innerHTML = `<div class="srs-top"><span class="srs-p">Word ${srs.i + 1} of ${n}</span><button type="button" class="sx-link" id="srs-quit">Stop</button></div><div class="qz-prog"><i style="width:${Math.round(srs.i / n * 100)}%"></i></div><div class="srs-front">${front}</div>${back}`;
@@ -4605,12 +4609,102 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             showToast(added ? `Saved ${added} word${added === 1 ? '' : 's'}. ${added === 1 ? 'It' : 'They'} will come back in your Vocabulary review.` : 'Already in your word review.', added ? 'success' : 'info');
         });
 
+        // ===== Say it back: record yourself saying a word or sentence, then see which words the computer did not recognise =====
+        const sb = { state: 'idle', rec: null, stream: null, chunks: [], host: null, text: '', tick: 0, stopT: 0, gen: 0, t0: 0, starting: false };
+        const sbBusy = () => sb.state !== 'idle' || sb.starting;
+        const sbHTML = (text, label) => text ? `<div class="sb" data-sb-text="${escapeHTML(text)}"><button type="button" class="sb-btn" data-sb-go="1" data-sb-label="${escapeHTML(label || 'Say it')}"><i class="fa-solid fa-microphone"></i> ${escapeHTML(label || 'Say it')}</button><div class="sb-out" role="status" aria-live="polite"></div></div>` : '';
+        function sbPaint() {
+            const h = sb.host; if (!h || !h.isConnected) return;
+            const btn = h.querySelector('.sb-btn'), out = h.querySelector('.sb-out'); if (!btn || !out) return;
+            btn.classList.toggle('rec', sb.state === 'rec'); btn.disabled = sb.state === 'busy';
+            btn.innerHTML = sb.state === 'rec' ? '<i class="fa-solid fa-stop"></i> Stop' : sb.state === 'busy' ? '<i class="fa-solid fa-spinner fa-spin"></i> Checking...' : '<i class="fa-solid fa-microphone"></i> ' + escapeHTML(btn.dataset.sbLabel || 'Say it');
+            if (sb.state === 'rec') out.innerHTML = '<span class="sb-live"><span class="ai-rec-dot"></span><span>Listening... <b class="sb-time">0:00</b> Say it, then tap Stop.</span></span>';
+            else if (sb.state === 'busy') out.innerHTML = '';
+        }
+        function sbCleanup() { clearInterval(sb.tick); clearTimeout(sb.stopT); try { sb.stream?.getTracks().forEach(t => t.stop()); } catch (e) {} sb.stream = null; }
+        function sbCancel() {
+            if (sb.state === 'idle') return;
+            sb.gen++;                                  // anything still being checked is ignored
+            try { if (sb.rec && sb.rec.state === 'recording') sb.rec.stop(); } catch (e) {}
+            sbCleanup(); sb.state = 'idle'; sbPaint();
+            const o = sb.host && sb.host.isConnected ? sb.host.querySelector('.sb-out') : null; if (o) o.innerHTML = '';
+            sb.host = null;
+        }
+        async function sbStart(host) {
+            if (sb.state === 'busy' || sb.starting) return showToast("Still checking your last try...", "info");
+            if (isRecordingNow()) return showToast("Finish the other recording first.", "info");
+            if (tm.state !== 'idle') return showToast("Finish the AI Tutor microphone first.", "info");
+            if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') return showToast("This browser can't record audio. Try Chrome.", "error");
+            const text = host.dataset.sbText || ''; if (!text) return;
+            sbCancel();
+            try { aiListenStop(); } catch (e) {}       // the computer's voice must not leak into your recording
+            sb.starting = true;
+            let stream;
+            try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+            catch (e) { sb.starting = false; return showToast("Allow the microphone in your browser, then tap Say it again.", "error"); }
+            sb.starting = false;
+            if (!host.isConnected) { stream.getTracks().forEach(t => t.stop()); return; }
+            const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => MediaRecorder.isTypeSupported?.(m));
+            let rec;
+            try { rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+            catch (e) { stream.getTracks().forEach(t => t.stop()); return showToast("This browser can't record audio. Try Chrome.", "error"); }
+            const g = ++sb.gen;
+            Object.assign(sb, { stream, rec, chunks: [], host, text, t0: Date.now(), state: 'rec' });
+            rec.ondataavailable = (e) => { if (e.data && e.data.size) sb.chunks.push(e.data); };
+            rec.onstop = () => sbDone(g);
+            rec.start(); sbPaint();
+            sb.tick = setInterval(() => { const s = Math.floor((Date.now() - sb.t0) / 1000), el = sb.host?.querySelector('.sb-time'); if (el) el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }, 250);
+            sb.stopT = setTimeout(() => { if (sb.state === 'rec') sbStop(); }, Math.min(25000, 5000 + text.split(/\s+/).length * 1200));
+        }
+        function sbStop() { if (sb.state !== 'rec') return; clearInterval(sb.tick); clearTimeout(sb.stopT); try { sb.rec.stop(); } catch (e) { sbCancel(); } }
+        function sbResult(target, heard) {
+            const clean = (t) => String(t).replace(/[‘’]/g, "'").replace(/[^A-Za-z0-9'\s-]+/g, ' ').replace(/\s+/g, ' ').trim();
+            const h = clean(heard);
+            if (!h) return { html: '<p class="sb-msg">I could not hear any words. Check your microphone, then try again.</p>', pct: 0 };
+            const d = wrDiff(clean(target), h);
+            if (!d) return { html: `<p class="sb-heard">The computer heard: “${escapeHTML(h)}”</p>`, pct: 0 };
+            const words = d.left.filter(x => x[0] !== '¶'), miss = words.filter(x => x[1]).length;
+            const pct = words.length ? Math.round((words.length - miss) / words.length * 100) : 0;
+            const tone = pct >= 90 ? 'good' : pct >= 60 ? 'ok' : 'low';
+            const msg = pct >= 90 ? 'Clear. Well done.' : pct >= 60 ? 'Nearly there. Practise the red words.' : 'Try again, a little slower and clearer.';
+            return { pct, html: `<div class="sb-score sb-${tone}"><b>${pct}%</b><span>${msg}</span></div>
+                <p class="sb-line">${wrMark(d.left, 'mark')}</p>
+                <p class="sb-heard">The computer heard: “${escapeHTML(h)}”</p>
+                <p class="sb-note">A rough check. A word in red was not recognised, so say it again more clearly.</p>` };
+        }
+        async function sbDone(g) {
+            if (g !== sb.gen) return;
+            sbCleanup();
+            const host = sb.host, text = sb.text, type = sb.rec?.mimeType || 'audio/webm', blob = new Blob(sb.chunks, { type });
+            const out = () => host && host.isConnected ? host.querySelector('.sb-out') : null;
+            if (blob.size < 2500) { sb.state = 'idle'; sbPaint(); const o = out(); if (o) o.innerHTML = '<p class="sb-msg">That was too short. Tap the button, speak, then tap Stop.</p>'; return; }
+            sb.state = 'busy'; sbPaint();
+            const ext = /mp4/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : 'webm';
+            try {
+                const { text: heard } = await transcribeBlob(blob, ext, { lang: 'en', timed: false });   // no hint is given, so a wrong word is not corrected for you
+                if (g !== sb.gen) return;
+                sb.state = 'idle'; sbPaint();
+                const r = sbResult(text, heard), o = out(); if (o) o.innerHTML = r.html;
+            } catch (e) {
+                if (g !== sb.gen) return;
+                sb.state = 'idle'; sbPaint();
+                const o = out(); if (o) o.innerHTML = `<p class="sb-msg">Could not check your voice (${escapeHTML(e && e.message ? e.message : 'unknown problem')}). Try again.</p>`;
+            }
+        }
+        document.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-sb-go]'); if (!b) return;
+            const host = b.closest('.sb'); if (!host) return;
+            if (sb.state === 'rec' && sb.host === host) sbStop(); else if (sb.state === 'idle') sbStart(host); else showToast("Finish the other recording first.", "info");
+        });
+        document.addEventListener('click', (e) => { if (sb.state !== 'idle' && e.target.closest('.nav-btn')) sbCancel(); }, true);
+
         function renderVocabCards() {
             const stage = qzEl('vocab-stage');
+            sbCancel();
             stage.innerHTML = vocabWords.map((w, i) => `<div class="qz-card" data-i="${i}"><div><span class="qz-word">${escapeHTML(w.word)}</span><span class="qz-pos">${escapeHTML(w.pos || '')}</span><span class="qz-tap">tap to see</span></div>
-                <div class="qz-more hide"><div>${escapeHTML(w.meaning)}</div>${w.km ? `<div class="qz-km">${escapeHTML(w.km)}</div>` : ''}<div class="sx-hint" style="margin-top:.35rem">“${escapeHTML(w.example)}”</div>${w.collocation ? `<div class="sx-hint">Use it: <b>${escapeHTML(w.collocation)}</b></div>` : ''}<button type="button" class="qz-save" data-save="${i}">${vocabBank[w.word] ? '✓ Saved' : '☆ Save word'}</button></div></div>`).join('')
+                <div class="qz-more hide"><div>${escapeHTML(w.meaning)}</div>${w.km ? `<div class="qz-km">${escapeHTML(w.km)}</div>` : ''}<div class="sx-hint" style="margin-top:.35rem">“${escapeHTML(w.example)}”</div>${w.collocation ? `<div class="sx-hint">Use it: <b>${escapeHTML(w.collocation)}</b></div>` : ''}${sbHTML(w.example, 'Say the sentence')}<button type="button" class="qz-save" data-save="${i}">${vocabBank[w.word] ? '✓ Saved' : '☆ Save word'}</button></div></div>`).join('')
                 + `<button type="button" class="sx-btn sx-btn-main" id="btn-vocab-quiz"><i class="fa-solid fa-circle-question"></i>Quiz me on these words</button>`;
-            stage.querySelectorAll('.qz-card').forEach(c => c.addEventListener('click', (e) => { if (e.target.closest('.qz-save')) return; c.querySelector('.qz-more').classList.toggle('hide'); c.querySelector('.qz-tap')?.classList.add('hide'); }));
+            stage.querySelectorAll('.qz-card').forEach(c => c.addEventListener('click', (e) => { if (e.target.closest('.qz-save, .sb')) return; c.querySelector('.qz-more').classList.toggle('hide'); c.querySelector('.qz-tap')?.classList.add('hide'); }));
             stage.querySelectorAll('.qz-save').forEach(b => b.addEventListener('click', () => {
                 const w = vocabWords[Number(b.dataset.save)];
                 if (vocabBank[w.word]) { delete vocabBank[w.word]; b.textContent = '☆ Save word'; } else { vocabBank[w.word] = srsNew({ m: w.meaning, ex: w.example, km: w.km || '', pos: w.pos || '', col: w.collocation || '' }); b.textContent = '✓ Saved'; }

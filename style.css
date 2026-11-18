@@ -739,3 +739,34 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 /* ---- AI Tutor: voice chat switch ---- */
 .ai-auto { padding-bottom: 0.3rem; }
 .ai-auto.ai-auto-last { padding-bottom: 0.6rem; padding-top: 0; }
+
+/* ---- Say it back ---- */
+.sb { margin-top: 0.6rem; width: 100%; }
+.sb-btn { display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(244,114,182,0.14); border: 1px solid rgba(244,114,182,0.5); color: #f9a8d4; border-radius: 999px; font-size: 0.78rem; font-weight: 700; padding: 0.35rem 0.9rem; cursor: pointer; }
+.sb-btn.rec { background: #e11d48; border-color: transparent; color: #fff; animation: aiRec 1.3s infinite; }
+.sb-btn:disabled { opacity: 0.75; cursor: progress; }
+.sb-live { display: flex; align-items: center; gap: 0.45rem; margin-top: 0.5rem; font-size: 0.8rem; color: #fecdd3; }
+.sb-live b { color: #fff; font-variant-numeric: tabular-nums; }
+.sb-score { display: flex; align-items: baseline; gap: 0.6rem; margin-top: 0.6rem; padding: 0.45rem 0.7rem; border-radius: 0.7rem; border: 1px solid; text-align: left; }
+.sb-score b { font-size: 1.3rem; color: #fff; } .sb-score span { font-size: 0.8rem; }
+.sb-good { background: rgba(52,211,153,0.12); border-color: #34d399; color: #a7f3d0; }
+.sb-ok { background: rgba(251,191,36,0.12); border-color: #fbbf24; color: #fde68a; }
+.sb-low { background: rgba(251,113,133,0.12); border-color: #fb7185; color: #fecdd3; }
+.sb-line { margin: 0.5rem 0 0; font-size: 0.95rem; line-height: 1.7; color: #e2e8f0; text-align: left; }
+.sb-line mark { background: rgba(251,113,133,0.25); color: #fecdd3; border-radius: 0.25rem; padding: 0 0.2rem; text-decoration: underline wavy #fb7185; text-underline-offset: 3px; }
+.sb-heard, .sb-note, .sb-msg { margin: 0.4rem 0 0; font-size: 0.78rem; line-height: 1.45; color: #94a3b8; text-align: left; }
+.sb-msg { color: #fcd34d; }
+@media (prefers-reduced-motion: reduce) { .sb-btn.rec { animation: none; } }
+
+/* Say it back on the light word cards */
+.qz-card .sb-btn { background: #fdf2f8; border-color: #f472b6; color: #be185d; }
+.qz-card .sb-btn.rec { background: #e11d48; border-color: transparent; color: #fff; }
+.qz-card .sb-live { color: #be123c; } .qz-card .sb-live b { color: #0f172a; }
+.qz-card .sb-score b { color: #0f172a; }
+.qz-card .sb-good { background: #ecfdf5; border-color: #34d399; color: #065f46; }
+.qz-card .sb-ok { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+.qz-card .sb-low { background: #fff1f2; border-color: #fb7185; color: #9f1239; }
+.qz-card .sb-line { color: #1e293b; }
+.qz-card .sb-line mark { background: #fecdd3; color: #9f1239; }
+.qz-card .sb-heard, .qz-card .sb-note { color: #64748b; }
+.qz-card .sb-msg { color: #b45309; }
