@@ -40,7 +40,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261118c">
+    <link rel="stylesheet" href="style.css?v=20261118d">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -178,9 +178,10 @@
                     <div class="db-grid2">
                         <div id="streak-card" class="db-card db-row">
                             <div>
-                                <p class="db-eyebrow" style="color:#fdba74"><i class="fa-solid fa-shield-heart"></i> 24h discipline streak</p>
+                                <p class="db-eyebrow" style="color:#fdba74"><i class="fa-solid fa-fire"></i> Study streak</p>
                                 <p id="dash-streak" class="db-big">0 <small>Days</small></p>
-                                <p id="streak-timer-note" class="sx-hint" style="margin:0;font-size:.74rem">+1 every 24h. Resets if you skip a day.</p>
+                                <p id="streak-timer-note" class="sx-hint" style="margin:0;font-size:.74rem">Finish any practice today to start your streak.</p>
+                                <div id="sd-week" class="sd-week" aria-label="Your last 7 days"></div>
                             </div>
                             <div class="db-ic" style="background:rgba(249,115,22,.2);color:#fb923c"><i class="fa-solid fa-fire-flame-curved flame-glow"></i></div>
                         </div>
@@ -1242,6 +1243,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             sessionUnsubs.forEach(fn => { try { fn(); } catch (e) {} });
             try { tmCancel(); } catch (e) {}
             try { sbCancel(); } catch (e) {}
+            try { clearTimeout(sdTimer); studyDays = {}; sdFor = ''; sdReady = ''; sdCloud = false; sdStored = null; sdPaint(); } catch (e) {}
             try { vocabBank = {}; vocabMeta = {}; vocabLoadedFor = ''; srs = null; vocabWords = []; srsBadge(); const sc = document.getElementById('srs-card'); if (sc) sc.innerHTML = ''; } catch (e) {}
             sessionUnsubs = [];
             sessionUid = null;
@@ -1299,11 +1301,79 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             } catch (e) { console.warn("Leaderboard sync:", e?.code || e); }
         }
 
+        // ===== Study days: a day counts when you finish something real (a graded test, a quiz, a word review, a tutor answer, a Say it try) =====
+        let studyDays = {}, sdFor = '', sdReady = '', sdCloud = false, sdTimer = 0, sdStored = null;   // sdStored = the streak number saved on the profile
+        const sdKey = (uid) => `IELTS_DAYS_${uid}`;
+        function sdStreak() { let off = studyDays[srsDay()] ? 0 : 1, n = 0; while (studyDays[srsDay(off + n)]) n++; return n; }   // today may still be to come, so yesterday keeps the streak alive
+        function sdBest() {
+            const ds = Object.keys(studyDays).filter(k => studyDays[k] > 0).sort(); let best = 0, run = 0, prev = 0;
+            ds.forEach(d => { const t = Date.parse(d + 'T00:00:00Z'); run = prev && t - prev === 864e5 ? run + 1 : 1; prev = t; if (run > best) best = run; });
+            return best;
+        }
+        function sdEnsure() {
+            const u = auth.currentUser; if (!u) return false;
+            if (sdFor !== u.uid) {
+                sdFor = u.uid; sdReady = ''; sdCloud = false; sdStored = null; studyDays = {};
+                try { const o = JSON.parse(localStorage.getItem(sdKey(u.uid)) || '{}'); if (o && typeof o === 'object') studyDays = o; } catch (e) {}
+                sdRemote(u.uid);
+            }
+            return true;
+        }
+        async function sdRemote(uid) {
+            try {
+                const snap = await getDoc(doc(db, 'users', uid, 'stats', 'days'));
+                if (sdFor !== uid) return;
+                const d = (snap.exists() && snap.data().days) || {};
+                Object.keys(d).forEach(k => { if ((studyDays[k] || 0) < d[k]) studyDays[k] = d[k]; });
+                const push = Object.keys(studyDays).some(k => !(d[k] >= studyDays[k]));
+                sdCloud = true; sdReady = uid; sdPaint(); sdSync();
+                if (push) sdPersist();
+            } catch (e) { if (sdFor === uid) { sdReady = uid; sdPaint(); sdSync(); } }   // no cloud: this phone's own days still count
+        }
+        function sdPersist() {
+            const u = auth.currentUser; if (!u || sdFor !== u.uid) return;
+            const keys = Object.keys(studyDays).sort(); if (keys.length > 400) keys.slice(0, keys.length - 400).forEach(k => delete studyDays[k]);
+            try { localStorage.setItem(sdKey(u.uid), JSON.stringify(studyDays)); } catch (e) {}
+            clearTimeout(sdTimer);
+            sdTimer = setTimeout(async () => {
+                const cu = auth.currentUser; if (!cu || cu.uid !== u.uid || !sdCloud) return;   // never overwrite the cloud copy before it was read
+                try { await setDoc(doc(db, 'users', u.uid, 'stats', 'days'), { days: studyDays, updatedAt: Date.now() }); } catch (e) {}
+            }, 1200);
+        }
+        // keeps the streak number on the profile and the leaderboard in step with the real study days
+        async function sdSync() {
+            const u = auth.currentUser; if (!u || sdReady !== u.uid || !currentProfile || sessionUid !== u.uid) return;
+            const n = sdStreak(); if (sdStored === n) return;
+            sdStored = n; currentProfile.studyStreak = n;
+            try { await setDoc(doc(db, 'users', u.uid), { studyStreak: n, lastStreakUpdate: Date.now() }, { merge: true }); } catch (e) {}
+            syncPublicProfile();
+        }
+        const SD_LETTER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        function sdPaint() {
+            const u = auth.currentUser, ready = !!u && sdReady === u.uid;
+            const n = ready ? sdStreak() : Math.max(0, Number(currentProfile?.studyStreak) || 0);
+            const big = document.getElementById('dash-streak'); if (big) big.innerHTML = `${n} <small>${n === 1 ? 'Day' : 'Days'}</small>`;
+            document.getElementById('streak-card')?.classList.toggle('streak-glow', n > 0);
+            const note = document.getElementById('streak-timer-note'), wk = document.getElementById('sd-week');
+            if (!ready) { if (wk) wk.innerHTML = ''; return; }
+            const today = !!studyDays[srsDay()], best = Math.max(sdBest(), n);
+            if (note) note.textContent = today ? `Studied today ✓ Best streak: ${best} day${best === 1 ? '' : 's'}` : n ? `Finish any practice today to keep your ${n}-day streak.` : 'Finish any practice today to start your streak.';
+            if (wk) wk.innerHTML = Array.from({ length: 7 }, (_, i) => { const off = 6 - i, d = srsDay(off); return `<span class="sd-dot${studyDays[d] ? ' on' : ''}${off === 0 ? ' today' : ''}" title="${d}">${SD_LETTER[new Date(Date.now() - off * 864e5).getDay()]}</span>`; }).join('');
+        }
+        function studyMark(kind) {
+            const u = auth.currentUser; if (!u || u.uid !== sessionUid || !sdEnsure()) return;
+            const d = srsDay(), first = !studyDays[d];
+            studyDays[d] = (studyDays[d] || 0) + 1;
+            sdPersist(); sdPaint(); sdSync();
+            if (first && sdReady === u.uid) { const n = sdStreak(); showToast(n > 1 ? `🔥 Study day counted. ${n} days in a row!` : '🔥 Study day counted. Come back tomorrow to start a streak.', 'success'); }
+        }
+
         // Save one graded attempt to THIS user's history (drives the progress chart + leaderboard points).
         // Only the first graded attempt of a given test/essay counts, so repeating a test can't farm points.
         async function recordResult({ module, band, score = null, total = null, title = "", testId = null, sig = null }) {
             const user = auth.currentUser;
             if (!user || typeof band !== 'number' || user.uid !== sessionUid) return;
+            try { studyMark('test'); } catch (e) {}
             const dupe = sig ? userResults.some(r => r.sig === sig) : (testId ? userResults.some(r => r.testId === testId) : false);
             if (dupe) return;
             const id = "res_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
@@ -1472,6 +1542,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             try { const h = location.hash.slice(1); if (/^(mock|reading|listening|writing|speaking|vocab|grammar|ai|mistakes)$/.test(h)) { document.querySelector(`.nav-btn[data-target="${h}"]`)?.click(); history.replaceState(null, '', location.pathname + location.search); } } catch (e) {}
             installTip();
             loadVocabBank();
+            sdEnsure();
 
             // Every listener below is stored so it can be switched off when this account signs out
             const guard = (fn) => (...args) => { if (sessionUid === uid) fn(...args); };
@@ -1499,14 +1570,9 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             sessionUnsubs.push(onSnapshot(userRef, guard(async (snap) => {
                 const data = snap.data();
                 if (!data) return;
-                const now = Date.now();
-                let streak = typeof data.studyStreak === 'number' ? data.studyStreak : 0;
-                const lastUpdate = data.lastStreakUpdate || now;
-                const elapsed = now - lastUpdate;
-                if (elapsed >= 86400000) {
-                    streak = elapsed < 172800000 ? streak + 1 : 0;
-                    try { await setDoc(userRef, { studyStreak: streak, lastStreakUpdate: now }, { merge: true }); } catch (e) {}
-                }
+                sdEnsure();   // the streak comes from the days you really studied
+                const streak = sdReady === uid ? sdStreak() : (typeof data.studyStreak === 'number' ? data.studyStreak : 0);
+                sdStored = typeof data.studyStreak === 'number' ? data.studyStreak : 0;
                 if (sessionUid !== uid) return;
                 document.getElementById('streak-card')?.classList.toggle('streak-glow', streak > 0);
 
@@ -1519,7 +1585,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
                 document.getElementById('dash-name').textContent = name;
                 document.getElementById('topbar-band').textContent = `Target: Band ${band}`;
                 document.getElementById('dash-band').textContent = `Target: Band ${band}`;
-                document.getElementById('dash-streak').innerHTML = `${streak} <small>Days</small>`;
+                sdPaint(); sdSync();
                 document.getElementById('topbar-avatar').src = av;
                 document.getElementById('mobile-avatar').src = av;
                 document.getElementById('settings-avatar-preview').src = av;
@@ -1798,6 +1864,7 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
                 ? await askIELTSVision(fullPrompt, pics, visionSys, { history: chatHistory.slice(-6), maxTokens: 1800 })
                 : await askIELTSAI(fullPrompt, sys, false, { history: chatHistory.slice(-6), maxTokens: 1800 });
             if (aiReply) { chatHistory.push({ role: 'user', content: (pics.length ? '[sent ' + pics.length + ' photo' + (pics.length > 1 ? 's' : '') + '] ' : '') + msg.slice(0, 1500) }, { role: 'assistant', content: aiReply.slice(0, 2500) }); chatHistory = chatHistory.slice(-8); }
+            if (aiReply) { try { studyMark('tutor'); } catch (e) {} }
             const reply = aiReply || ("⚠ " + aiProblemText() + " Please send your message again.");
             document.getElementById(loadId)?.remove();
 
@@ -4444,6 +4511,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
         function qzRun(stage, items, actions) {
             let i = 0, score = 0; const wrong = [];
             const finish = () => {
+                try { studyMark('quiz'); } catch (e) {}
                 const pct = Math.round(score / items.length * 100);
                 stage.innerHTML = `<div class="qz-q" style="text-align:center"><div class="qz-score">${score} / ${items.length}</div><div>${pct >= 85 ? 'Excellent work!' : pct >= 60 ? 'Good progress. Review the mistakes below.' : 'Keep practising. Read each explanation carefully.'}</div></div>
                     ${wrong.length ? `<div class="sx-result"><h3 class="sx-result-h">Review your mistakes</h3>${wrong.map(w => `<div class="qz-rev"><div>${w.it.q}</div><div class="qz-bad">Your answer: ${escapeHTML(w.picked)}</div><div class="qz-good">Correct: ${escapeHTML(w.it.options[w.it.ans])}</div><div class="qz-why">${escapeHTML(w.it.exp || '')}</div></div>`).join('')}</div>` : ''}
@@ -4523,6 +4591,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
         function srsRate(key, rating) {
             const e = vocabBank[key]; if (!e) return;
             const nb = srsNext(e, rating);
+            try { studyMark('word'); } catch (x) {}
             vocabBank[key] = { ...e, box: nb, due: Date.now() + srsWait(nb), reps: (e.reps || 0) + 1, lapses: (e.lapses || 0) + (rating === 'again' ? 1 : 0), upd: Date.now() };
         }
         const srsNorm = (t) => String(t || '').toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[^a-z0-9'\s-]+/g, ' ').replace(/[\s-]+/g, ' ').trim();
@@ -4725,6 +4794,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
                 if (g !== sb.gen) return;
                 sb.state = 'idle'; sbPaint();
                 const r = sbResult(text, heard), o = out(); if (o) o.innerHTML = r.html;
+                if (r.pct > 0) { try { studyMark('say'); } catch (e) {} }
             } catch (e) {
                 if (g !== sb.gen) return;
                 sb.state = 'idle'; sbPaint();
@@ -4953,6 +5023,7 @@ Then a markdown table (Criterion | Band | Comment), "Strengths" (2 bullets), "Ma
             qzEl('mk-list').innerHTML = ''; qzEl('mk-actions').innerHTML = ''; qzEl('mk-filters').innerHTML = '';
             const ins = qzEl('mk-insights'); if (ins) ins.innerHTML = '';
             const finish = () => {
+                try { studyMark('drill'); } catch (e) {}
                 if (ctx.audio) stopListening();
                 if (ctx.onDone) ctx.onDone(got, items.length);
                 const msg = ctx.drill

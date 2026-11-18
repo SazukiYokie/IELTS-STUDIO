@@ -788,3 +788,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .srs-dres.bad { background: rgba(251,191,36,0.16); color: #fde68a; }
 .srs-yours { font-size: 0.82rem; color: #94a3b8; } .srs-yours s { color: #fda4af; }
 .srs-r.suggest { box-shadow: 0 0 0 2px #fff; }
+
+/* ---- Study streak: last 7 days ---- */
+.sd-week { display: flex; gap: 0.3rem; margin-top: 0.5rem; }
+.sd-dot { width: 1.45rem; height: 1.45rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.66rem; font-weight: 800; background: rgba(148,163,184,0.16); color: #94a3b8; border: 1px solid rgba(148,163,184,0.25); }
+.sd-dot.on { background: #f97316; color: #fff; border-color: transparent; }
+.sd-dot.today { box-shadow: 0 0 0 2px rgba(253,186,116,0.7); }
