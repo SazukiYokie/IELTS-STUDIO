@@ -50,7 +50,7 @@
         }
     </script>
 
-    <link rel="stylesheet" href="style.css?v=20261124a">
+    <link rel="stylesheet" href="style.css?v=20261127a">
 </head>
 <body class="flex flex-col antialiased relative text-slate-100 overflow-hidden">
 
@@ -2095,23 +2095,86 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             "Band 6-7 level: more abstract ideas, some specialist vocabulary",
             "Band 7-8.5 level: dense, argumentative, nuanced, requires inference"
         ];
-        const MOCK_TOPICS = [
-            "urban planning and green spaces", "the history of a scientific instrument", "coral reef ecosystems",
-            "the psychology of memory", "the transition to renewable energy", "ancient trade routes and archaeology",
-            "behavioural economics", "how children acquire language", "architecture and climate adaptation",
-            "the history of cartography", "sleep research", "the rise of urban beekeeping", "deep-sea exploration",
-            "the economics of water scarcity", "bird migration and navigation", "the science of taste and smell",
-            "the history of public libraries", "volcanoes and early-warning systems", "wildlife corridors and roads",
-            "the origins of the bicycle"
+        // Big banks, so two tests are very unlikely to share a subject. Reading is grouped by field (a full test uses three different fields).
+        const READ_BANK = {
+            nature: ["coral reef bleaching and recovery", "bird migration and navigation", "the decline of pollinating insects", "how forests share resources underground", "the return of wolves to a national park", "life around deep-sea hydrothermal vents", "the science of animal hibernation", "seaweed farming as a new industry", "why octopuses are so intelligent", "the spread of invasive species on islands", "glaciers and rising sea levels", "how mangroves protect coastlines", "the life cycle and journey of salmon", "foxes and other wildlife in cities"],
+            history: ["the origins of the bicycle", "the history of public libraries", "ancient trade routes and the Silk Road", "the invention of the printing press", "how maps shaped empires", "the building of the Panama Canal", "the global history of tea", "Polynesian ocean navigation", "the Roman aqueducts and water engineering", "the rise and fall of the Hanseatic League", "the history of the mechanical clock", "early photography and its pioneers", "the discovery of penicillin", "the history of paper making"],
+            mind: ["the psychology of memory", "how children acquire language", "sleep research and dreams", "why people procrastinate", "attention and the myth of multitasking", "how bilingualism shapes the brain", "the psychology of happiness", "the placebo effect", "how habits are formed", "creativity and the wandering mind", "music and learning", "decision fatigue", "how humans recognise faces", "the science of laughter"],
+            society: ["behavioural economics and nudges", "the economics of water scarcity", "the gig economy", "the four-day working week", "urban planning and green spaces", "why cities build cycle lanes", "the rise of remote work", "the economics of the fashion industry", "microfinance in developing countries", "the decline of the traditional high street", "the global trade in coffee", "ageing populations and pensions", "the sharing economy", "tourism and overcrowded cities"],
+            tech: ["the transition to renewable energy", "how batteries are changing transport", "the rise of vertical farming", "3D printing in medicine", "the history and future of the electric car", "machine translation and its limits", "how smart electricity grids work", "the engineering of wind turbines", "drones in farming and rescue", "the challenge of recycling plastic", "satellites and weather forecasting", "the search for fusion energy", "cyber security and everyday habits", "robots in warehouses and hospitals"],
+            health: ["the science of taste and smell", "the gut microbiome", "how vaccines are developed", "green spaces and public health", "hearing loss and cochlear implants", "exercise and healthy ageing", "antibiotic resistance", "food allergies in children", "how the immune system learns", "the rise of telemedicine", "the effects of noise pollution", "sports science and injury prevention", "sunlight, vitamin D and health", "traditional medicine and modern research"],
+            earth: ["volcanoes and early-warning systems", "architecture and climate adaptation", "the history of cartography", "earthquake-resistant buildings", "drought and the water cycle", "desert expansion and farming", "how caves are formed", "tidal power", "light pollution and the night sky", "tracking hurricanes with satellites", "soil and the future of food", "what ice cores reveal about climate", "wildlife corridors and roads", "urban heat islands"]
+        };
+        const READ_STYLES = [
+            "a historical account that moves through time, with named people and dates",
+            "an explanation of a process, step by step, with the reasons behind each step",
+            "a discussion of a problem and the different solutions people have tried",
+            "a debate between researchers or schools of thought who disagree",
+            "a case study of one place, project or experiment, and what it teaches",
+            "a feature article that opens with a vivid scene, then widens to the big picture",
+            "a comparison of how different countries or groups approach the same issue",
+            "a profile of an inventor, scientist or organisation and the impact of their work",
+            "a review of recent research, including surprising or contradictory findings"
         ];
-        const LISTEN_TOPICS = [
-            "a community sports centre", "a university library induction", "a student accommodation enquiry", "a local museum's new exhibition",
-            "a hiking and camping trip", "a part-time job at a cafe", "a research project on bees", "a group presentation on renewable energy",
-            "a lecture on the history of glass", "a lecture on animal communication", "a lecture on urban farming", "a geography field trip report",
-            "a booking for a language course", "an orientation talk for international students", "a lecture on how cities manage waste", "a tutorial about a psychology experiment"
+        // Listening scenarios are written for their own section type, so a lecture topic never lands in the conversation.
+        const LISTEN_BANK = [
+            ["booking a table and arranging a birthday dinner", "enquiring about a gym membership", "renting a flat through an agent", "joining a local library", "booking a hotel room for a weekend", "reporting a lost suitcase at an airport", "registering with a doctor's surgery", "ordering catering for a party", "buying train tickets for a group trip", "enrolling in an evening cookery class", "enquiring about a second-hand car", "booking a guided city tour", "applying for a part-time job at a bookshop", "arranging a removal van", "booking a campsite for a family holiday", "enquiring about swimming lessons for a child", "hiring a bike for a day", "booking a dentist appointment", "ordering a custom cake", "finding a language exchange partner", "joining a photography club", "reserving a meeting room at a business centre", "booking a driving test", "volunteering at an animal shelter", "arranging a school trip with a travel agent", "booking theatre tickets", "opening a student bank account", "arranging a home internet installation", "booking a sports pitch for a team"],
+            ["a guide introducing a new community recycling centre", "a manager describing a wildlife park and its opening hours", "a talk about a city's new bike-sharing scheme", "a welcome talk at a farm that offers fruit picking", "an announcement about a summer music festival", "a tour of a historic castle", "a radio talk about a new public swimming pool", "an introduction to a local volunteering fair", "a talk about a botanical garden's guided walks", "a guide describing a river boat trip", "a talk about an open-air cinema season", "an orientation talk at an adventure holiday centre", "a presenter introducing a town's weekend market", "a talk about a heritage railway's day trips", "a council officer explaining changes to bus routes", "a curator introducing an art gallery's family workshops", "a ranger describing a national park's trails", "a manager presenting a new community garden", "a tour of a working chocolate factory", "a talk about a sailing school's courses", "a guide to a city's food festival", "a talk about a new leisure centre's facilities", "an introduction to a seaside town's lifeboat station", "a talk about a language school's social programme", "an explanation of how a library's new app works", "a museum guide describing a maritime exhibition", "a talk about a conservation project on a nature reserve", "a manager explaining parking and safety rules at a theme park"],
+            ["planning a research project on urban noise", "an assignment on the effects of social media on teenagers", "feedback on a presentation about renewable energy", "choosing a method for a psychology experiment on memory", "a dissertation on traffic and air quality", "a group project on food packaging and waste", "a literature review on bilingual education", "a field study of a local river", "an experiment on plant growth under different light", "a report on a company's marketing strategy", "an essay about the history of a famous building", "a survey on student attitudes to sleep", "a case study of a failed product launch", "an assignment on sustainable tourism", "analysing data from a sports science trial", "preparing a seminar on artificial intelligence in medicine", "a project on how people use public libraries", "a lab report on soil samples", "an assignment comparing two economic theories", "a design project for an accessible playground", "a study on how colour affects shopping", "a presentation on coral reef conservation", "a research proposal on migration and language", "a review of a documentary about climate change", "an architecture assignment on low-energy houses", "a report on a hospital work placement", "a study of how bees choose flowers", "a critical review of a novel for a literature course"],
+            ["the history of glass making", "how animals communicate", "urban farming and food security", "how cities manage waste", "sleep and memory", "the origins of the Olympic Games", "how glaciers shape landscapes", "the rise of cashless payments", "the psychology of persuasion in advertising", "how bridges are designed to survive earthquakes", "the history of the postal service", "ocean currents and climate", "the economics of the music industry", "how languages change over time", "the development of antibiotics", "trade on the Silk Road", "how life colonises volcanic islands", "the invention and impact of the printing press", "how supermarkets influence what we buy", "microplastics in rivers and seas", "the science of colour and perception", "ancient Egyptian engineering", "how cities grew in the twentieth century", "how bats navigate in the dark", "tidal energy and its challenges", "the future of electric aircraft", "the history of chocolate", "how honeybees make decisions as a colony"]
         ];
-        const READING_PLANS = [{ tfng: 6, gap: 4, mcq: 3 }, { match: 5, gap: 4, mcq: 4 }, { tfng: 5, mcq: 5, gap: 4 }];
-        const LISTENING_PLANS = [{ gap: 10 }, { mcq: 5, gap: 5 }, { mcq: 6, gap: 4 }, { gap: 10 }];
+        const LISTEN_PLACES = ["Manchester", "Edinburgh", "Auckland", "Toronto", "Brisbane", "Dublin", "Leeds", "Bristol", "Cardiff", "Perth", "Wellington", "Vancouver", "Cambridge", "Sheffield", "Adelaide", "Glasgow", "Melbourne", "Cork", "Halifax", "Oxford", "Newcastle", "Hobart", "Christchurch", "Ottawa"];
+        const LISTEN_NAMES = ["Sarah", "Tom", "Priya", "Daniel", "Mei", "Hassan", "Olivia", "Kofi", "Elena", "Jack", "Aisha", "Liam", "Sofia", "Ben", "Nadia", "Chen", "Grace", "Omar", "Hannah", "Ravi", "Zoe", "Marco", "Fatima", "Callum"];
+        // Each slot has several question mixes with the same total, so even the shape of the test changes.
+        const READING_PLAN_SETS = [
+            [{ tfng: 6, gap: 4, mcq: 3 }, { tfng: 5, gap: 4, mcq: 4 }, { match: 4, tfng: 5, gap: 4 }, { mcq: 5, gap: 4, tfng: 4 }],
+            [{ match: 5, gap: 4, mcq: 4 }, { tfng: 4, match: 5, mcq: 4 }, { match: 4, gap: 5, mcq: 4 }, { tfng: 5, match: 4, gap: 4 }],
+            [{ tfng: 5, mcq: 5, gap: 4 }, { tfng: 5, match: 5, mcq: 4 }, { mcq: 5, gap: 5, tfng: 4 }, { match: 5, mcq: 5, tfng: 4 }]
+        ];
+        const LISTENING_PLAN_SETS = [
+            [{ gap: 10 }],   // Section 1 is always a form or notes to complete, as in the real exam
+            [{ mcq: 5, gap: 5 }, { mcq: 6, gap: 4 }, { mcq: 4, gap: 6 }],
+            [{ mcq: 6, gap: 4 }, { mcq: 5, gap: 5 }, { mcq: 4, gap: 6 }],
+            [{ gap: 10 }]
+        ];
+        const examOne = (a) => a[Math.floor(Math.random() * a.length)];
+        const examCap = (t) => { t = String(t || ''); return t.charAt(0).toUpperCase() + t.slice(1); };
+        const examSeenSet = (key, arr) => { try { localStorage.setItem(seenKey(key), JSON.stringify(arr.slice(-600))); } catch (e) {} };
+        // What this student has already been given (topics) and what the tests were called (titles), so "new" really is new
+        function examPlanTopics(m) {
+            const L = m.kind === 'listening', key = 'exam_' + m.kind + '_t';
+            let seen = seenGet(key);
+            const used = [], names = qzShuffle(LISTEN_NAMES), places = qzShuffle(LISTEN_PLACES);
+            const doms = L ? [] : (() => { const all = qzShuffle(Object.keys(READ_BANK)); const hasNew = (d) => READ_BANK[d].some(t => !seen.includes(t)); return [...all.filter(hasNew), ...all.filter(d => !hasNew(d))]; })();
+            m.picks = m.cfg.slots.map((sl, i) => {
+                let pool, domain = '';
+                if (L) pool = LISTEN_BANK[sl.n - 1];
+                else { domain = doms.filter(d => !used.includes(d))[0] || doms[0]; used.push(domain); pool = READ_BANK[domain]; }
+                let fresh = pool.filter(t => !seen.includes(t));
+                if (!fresh.length) { seen = seen.filter(t => !pool.includes(t)); fresh = pool; }   // everything in this list has been used once: start it over
+                const topic = examOne(fresh);
+                seen = seen.filter(t => t !== topic); seen.push(topic);
+                return { topic, domain, style: L ? '' : examOne(READ_STYLES), names: [names[(2 * i) % names.length], names[(2 * i + 1) % names.length]], place: places[i % places.length], code: Math.random().toString(36).slice(2, 8).toUpperCase() };
+            });
+            examSeenSet(key, seen);
+        }
+        const examTitleKey = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+        function examTitleSeen(kind, title) {
+            const k = examTitleKey(title); if (k.length < 4) return false;
+            const w = new Set(k.split(' ').filter(x => x.length > 2));
+            return seenGet('exam_' + kind + '_ti').some(o => {
+                const ok = examTitleKey(o); if (ok === k) return true;
+                const v = ok.split(' ').filter(x => x.length > 2);
+                if (w.size < 3 || v.length < 3) return false;
+                return v.filter(x => w.has(x)).length / Math.max(w.size, v.length) >= 0.75;
+            });
+        }
+        const examRecentTitles = (kind) => seenGet('exam_' + kind + '_ti').slice(-14).map(t => String(t).replace(/"/g, "'").slice(0, 60));
+        function examShuffleTopics() {
+            const m = exam;
+            if (!m || m.phase !== 'intro' || m.parts.length) return;
+            m.cfg = examConfig(m.kind, m.mode, m.idx); examPlanTopics(m); renderExamIntro();
+        }
         const LISTEN_SECTIONS = [
             { n: 1, label: "Section 1 · Everyday conversation", speakers: 2, brief: "a conversation between two people in an everyday situation (booking, renting, joining, enquiring). Include at least one spelled name or number and one realistic self-correction such as 'No, sorry, I meant...'." },
             { n: 2, label: "Section 2 · Talk on a social topic", speakers: 1, brief: "a monologue by one speaker (a guide or organiser) about a local facility, event or service. Include directions, times and prices." },
@@ -2213,7 +2276,15 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
             return out;
         }
 
-        function examBuildPrompt(kind, slot, topic) {
+        function examVariety(L, pick, avoid) {
+            const base = L
+                ? `Be specific and original: invent realistic names, streets, prices, times and dates, and avoid the most obvious stock details.`
+                : `Choose a specific, less obvious angle (one place, person, study or event) instead of a general overview, and invent realistic specifics (researchers, places, dates, figures). Do not open with "In recent years" or "Throughout history".`;
+            const av = avoid.length ? `\nThis student has already met these titles, so write something clearly different, with a different title and different details: ${avoid.map(t => '"' + t + '"').join('; ')}.` : '';
+            return `${base}${av}\nVariation code ${pick.code}: it only exists to make this test unlike every other one you have written.`;
+        }
+
+        function examBuildPrompt(kind, slot, pick, avoid = []) {
             const parts = Object.entries(slot.plan).map(([t, n]) => `${n} "${t}"`).join(', ');
             if (kind === 'listening') {
                 const fmt = slot.sec.speakers === 2
@@ -2221,9 +2292,11 @@ To score Band 8.0+ in Writing and Speaking, combine dependent and independent cl
                     : `one continuous talk by a single speaker, no speaker labels, no stage directions`;
                 return `Write ONE section of a Cambridge IELTS Listening test.
 ${slot.sec.label}. Content: ${slot.sec.brief}
-Theme: ${topic}.
+Scenario: ${pick.topic}. Set it in or near ${pick.place}.
+${slot.sec.speakers === 2 ? `The two speakers are called ${pick.names[0]} and ${pick.names[1]}.` : `If the speaker gives a name, it is ${pick.names[0]}.`}
 Script: ${fmt}. 420 to 500 words of natural spoken English with realistic distractors (details that are mentioned and then corrected or rejected). Completely original.
 Make it easy to follow by ear: short sentences (mostly 8 to 18 words), one idea at a time, clear signpost words (first, then, however, by the way), and say each key detail clearly: spell unusual names letter by letter with hyphens (for example "That's S-M-I-T-H"), give phone numbers and dates in separate small groups, and let the other speaker repeat or confirm important details. Avoid long lists in one sentence.
+${examVariety(true, pick, avoid)}
 Questions (exactly this many of each type): ${parts}. Put the "mcq" questions first, then the "gap" questions; inside each type follow the order of the script.
 - "gap": note, form or sentence completion. "q" is a short line containing ________ ; "ans" is 1-3 words or a number copied EXACTLY as said in the script (write numbers as digits); optional "alt" array of other accepted answers.
 - "mcq": "q" is the question stem; "options" is exactly 3 plain strings (no letters); "ans" is A, B or C.
@@ -2231,8 +2304,9 @@ Every question needs "exp": at most 15 words, quoting the part of the script tha
 Return ONLY valid JSON: {"title":"...","script":"...","questions":[{"type":"gap","q":"...","ans":"...","exp":"..."}]}`;
             }
             return `Write ONE passage for a Cambridge IELTS Academic Reading test.
-Topic: ${topic}. Difficulty: ${slot.level}.
+Topic: ${pick.topic}. Text style: ${pick.style}. Difficulty: ${slot.level}.
 Passage: 5 paragraphs, each 110-140 words, formal academic style, completely original.
+${examVariety(false, pick, avoid)}
 Questions (exactly this many of each type): ${parts}.
 Question formats:
 - "tfng": "q" is a statement about the passage; "ans" is "True", "False" or "Not Given". "Not Given" must genuinely not be stated or contradicted anywhere in the passage.
@@ -2256,15 +2330,15 @@ Return ONLY valid JSON in this shape:
             }
         }
 
-        async function examGeneratePart(m, slot, topic) {
+        async function examGeneratePart(m, slot, pick) {
             const L = m.kind === 'listening';
             const planned = Object.values(slot.plan).reduce((a, b) => a + b, 0);
             let reason = '';
             for (let attempt = 0; attempt < 3; attempt++) {
                 if (exam !== m || m.cancelled) return null;
-                const raw = await askIELTSAI(examBuildPrompt(m.kind, slot, topic),
+                const raw = await askIELTSAI(examBuildPrompt(m.kind, slot, pick, examRecentTitles(m.kind)),
                     L ? "You are a senior Cambridge IELTS Listening test writer. Output valid JSON only." : "You are a senior Cambridge IELTS Academic Reading test writer. Output valid JSON only.",
-                    true, { maxTokens: 4200, budgetMs: 100000, requestMs: 40000, noFallback: attempt < 2 });
+                    true, { maxTokens: 4200, budgetMs: 100000, requestMs: 40000, noFallback: attempt < 2, temperature: [0.95, 0.8, 0.6][attempt] });
                 if (exam !== m || m.cancelled) return null;
                 const kindNow = lastAIError && lastAIError.kind;
                 if (!raw) {
@@ -2292,6 +2366,9 @@ Return ONLY valid JSON in this shape:
                     .filter(q => q.type !== 'gap' || gapInText(q.ans, text));
                 if (qs.length < Math.ceil(planned * 0.75)) { reason = `only ${qs.length} of ${planned} questions were good enough`; continue; }
                 qs.sort((a, b) => EX_RANK[m.kind][a.type] - EX_RANK[m.kind][b.type]);
+                const realTitle = typeof parsed.title === 'string' && parsed.title.trim().length >= 3;
+                if (realTitle && attempt < 2 && examTitleSeen(m.kind, parsed.title)) { reason = "it repeated an earlier test"; continue; }
+                if (realTitle) seenAdd('exam_' + m.kind + '_ti', [String(parsed.title).trim().slice(0, 120)], 40);
                 return { title: String(parsed.title || slot.title).slice(0, 120), ...content, questions: qs };
             }
             m.failReason = reason || aiProblemText();
@@ -2301,10 +2378,10 @@ Return ONLY valid JSON in this shape:
         function examConfig(kind, mode, idx) {
             if (kind === 'reading') {
                 const ids = mode === 'full' ? [0, 1, 2] : [idx];
-                return { slots: ids.map(i => ({ plan: READING_PLANS[i], level: MOCK_LEVELS[i], title: `Passage ${i + 1}`, n: i + 1 })), seconds: mode === 'full' ? 3600 : 1200 };
+                return { slots: ids.map(i => ({ plan: examOne(READING_PLAN_SETS[i]), level: MOCK_LEVELS[i], title: `Passage ${i + 1}`, n: i + 1 })), seconds: mode === 'full' ? 3600 : 1200 };
             }
             const ids = mode === 'full' ? [0, 1, 2, 3] : [idx];
-            return { slots: ids.map(i => ({ plan: LISTENING_PLANS[i], sec: LISTEN_SECTIONS[i], title: `Section ${i + 1}`, n: i + 1 })), seconds: mode === 'full' ? 2400 : 600 };
+            return { slots: ids.map(i => ({ plan: examOne(LISTENING_PLAN_SETS[i]), sec: LISTEN_SECTIONS[i], title: `Section ${i + 1}`, n: i + 1 })), seconds: mode === 'full' ? 2400 : 600 };
         }
 
         // ---------------- exam state + screens ----------------
@@ -2354,6 +2431,7 @@ Return ONLY valid JSON in this shape:
                 <div class="ex-stats"><div class="ex-stat"><b>${slots.length}</b><span>${unit}</span></div><div class="ex-stat"><b>${nQ}</b><span>Questions</span></div><div class="ex-stat"><b>${mins}</b><span>Minutes</span></div></div>
                 <ul class="ex-points">${points.map(([ic, t]) => `<li><i class="fa-solid ${ic}"></i><span>${escapeHTML(t)}</span></li>`).join('')}</ul>
                 ${L ? `<label class="ex-toggle"><input type="checkbox" id="ex-strict"><span class="trk"></span><span><span class="tt">Real exam conditions</span><br><span class="ts">20 seconds to read, then it plays once: no pause, no replay. Leave it off while you practise.</span></span></label>` : ''}
+                ${m.picks && !have ? `<div class="ex-topics" id="ex-topics"><b>${L ? 'Today\'s situations' : 'Today\'s topics'}</b><ul>${slots.map((sl, i) => `<li><em>${L ? 'Section' : 'Passage'} ${sl.n}</em><span>${escapeHTML(examCap(m.picks[i] && m.picks[i].topic))}</span></li>`).join('')}</ul><button type="button" id="btn-exam-shuffle" class="ex-shuffle"><i class="fa-solid fa-shuffle"></i> Different topics</button></div>` : ''}
                 <p class="ex-prep"><i class="fa-solid fa-wand-magic-sparkles"></i> Written live by AI, so it is new every time. Preparing takes about ${full ? 'a minute' : '20 seconds'}. Your timer starts only when everything is ready.</p>
                 ${errMsg ? `<div class="ex-error"><b>Not ready yet.</b> ${escapeHTML(errMsg)}${have ? `<br>The first ${have} part${have > 1 ? 's are' : ' is'} already prepared, so nothing is lost.` : ''}</div>` : ''}
                 <button type="button" id="btn-exam-start" class="ex-btn ex-btn-green ex-btn-big">${btn}</button>
@@ -2490,7 +2568,8 @@ Return ONLY valid JSON in this shape:
         function openExam(kind, mode, idx = 0) {
             if (exam) closeExam(true);
             const cfg = examConfig(kind, mode, idx);
-            exam = { kind, mode, cfg, seconds: cfg.seconds, phase: 'intro', parts: [], answers: {}, tab: 0, pane: 'text', endAt: 0, timer: null, cancelled: false, strict: false, played: {} };
+            exam = { kind, mode, idx, cfg, seconds: cfg.seconds, phase: 'intro', parts: [], answers: {}, tab: 0, pane: 'text', endAt: 0, timer: null, cancelled: false, strict: false, played: {} };
+            try { examPlanTopics(exam); } catch (e) {}
             exEl('exam-overlay')?.classList.remove('hide');
             examChrome('intro');
             renderExamIntro();
@@ -2562,12 +2641,11 @@ Return ONLY valid JSON in this shape:
             if (!m || m.phase !== 'intro' || aiBusyGuard()) return;
             m.strict = !!exEl('ex-strict')?.checked;
             m.phase = 'loading';
-            if (!m.pool) m.pool = [...(m.kind === 'listening' ? LISTEN_TOPICS : MOCK_TOPICS)].sort(() => Math.random() - 0.5);
-            const pool = m.pool;
+            if (!m.picks) examPlanTopics(m);
             const slots = m.cfg.slots;
             for (let i = m.parts.length; i < slots.length; i++) {
                 renderExamLoading(i, slots.length);
-                const p = await examGeneratePart(m, slots[i], pool[i % pool.length]);
+                const p = await examGeneratePart(m, slots[i], m.picks[i]);
                 if (exam !== m || m.cancelled) return;
                 if (!p) {
                     m.phase = 'intro';
@@ -2638,6 +2716,7 @@ Return ONLY valid JSON in this shape:
                 return;
             }
             if (t.closest('#btn-exam-start')) startExam();
+            else if (t.closest('#btn-exam-shuffle')) examShuffleTopics();
             else if (t.closest('#btn-exam-cancel') || t.closest('#ex-done')) closeExam(true);
             else if (t.closest('#ex-again')) { const k = exam.kind, md = exam.mode, id = exam.cfg?.slots?.[0] ? exam.cfg.slots[0].n - 1 : 0; openExam(k, md, md === 'full' ? 0 : Math.max(0, Math.min(id, 3))); }
         });
